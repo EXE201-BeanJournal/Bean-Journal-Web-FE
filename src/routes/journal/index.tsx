@@ -14,7 +14,7 @@ import { Profile } from "../../types/supabase"; // Import Profile interface
 import TagSection from "../../components/journal/TagSection"; // Import TagSection
 import { JournalEntry } from "../../types/supabase"; // Import JournalEntry interface
 import { getJournalEntriesByUserId } from "../../services/journalEntryService"; // Import journal entry services
-import { getProfileByUserId } from "../../services/profileService"; // Import profile services
+import { getProfileByUserId } from "../../services/profileService";
 // import { createClerkSupabaseClient } from "../../utils/supabaseClient"; // No longer needed here
 import { useAuth } from "@clerk/clerk-react"; // Kept for userId
 import { useSupabase } from "../../contexts/SupabaseContext"; // Import useSupabase
@@ -310,7 +310,7 @@ function Homepage() {
     fetchProfile();
   }, [userId, supabase]);
 
-  // Fetch journal entries on component mount
+  // Fetch journal entries on component mount (kept for other components like HeaderCard)
   useEffect(() => {
     const fetchJournalEntries = async () => {
       if (!userId || !supabase) return; // Check for supabase client
@@ -325,9 +325,7 @@ function Homepage() {
       }
       setLoadingJournalEntries(false);
     };
-    if (supabase && userId) {
-        fetchJournalEntries();
-    }
+    fetchJournalEntries();
   }, [userId, supabase]);
 
   // const handleDebugClick = () => {
@@ -348,13 +346,19 @@ function Homepage() {
     <>
       <style>{animationStyles}</style>
       <div className="h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
+        {loadingJournalEntries && (
+          <p className="text-center text-gray-500 py-4">Loading journal entries...</p>
+        )}
+        {journalEntryError && (
+          <p className="text-center text-red-500 py-4">{journalEntryError}</p>
+        )}
         {loadingProfile && (
           <p className="text-center text-gray-500 py-4">Loading profile...</p>
         )}
         {profileError && (
           <p className="text-center text-red-500 py-4">{profileError}</p>
         )}
-        {!loadingProfile && !profileError && userProfile && supabase && (
+        {!loadingJournalEntries && !journalEntryError && userProfile && journalEntries.length > 0 && (
           <HeaderCard journalEntries={journalEntries} userProfile={userProfile} />
         )}
         {/* Render TagSection if supabase and userId are available */} 
@@ -377,14 +381,11 @@ function Homepage() {
           toggleDebugButton={toggleDebugButton}
         /> */}
         
-        {/* Render StreakManagement if supabase, userId and userProfile are available */} 
-        {supabase && userId && userProfile && (
+        {/* Render StreakManagement if supabase and userId are available */} 
+        {supabase && userId && (
             <StreakManagement 
                 supabase={supabase} 
                 userId={userId} 
-                userProfile={userProfile} 
-                journalEntries={journalEntries} // Pass journal entries
-                // debugStreakKey={debugStreakKey}   // Pass debug key
                 externallyTriggeredOpen={showStreakModalHomepage} // Added prop
                 onClose={() => setShowStreakModalHomepage(false)} // Added prop
             />

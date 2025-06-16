@@ -20,7 +20,7 @@ import '../journal-theme.css';
 import { getProjectById } from "@/services/projectService";
 import { useAuth } from "@clerk/clerk-react";
 import { useSupabase } from "@/contexts/SupabaseContext";
-import type { Project, Profile, JournalEntry } from "@/types/supabase";
+import type { Project } from "@/types/supabase";
 import StreakManagement from "@/components/journal/StreakManagement";
 import { Button } from "@/components/ui/Button";
 
@@ -39,9 +39,10 @@ function JournalLayout() {
   const [projectName, setProjectName] = useState<string | null>(null);
   const [isLoadingProjectName, setIsLoadingProjectName] = useState(false);
 
-  const [userProfileData, setUserProfileData] = useState<Profile | null>(null);
-  const [journalEntriesData, setJournalEntriesData] = useState<JournalEntry[]>([]);
-  const [isLoadingProfileAndEntries, setIsLoadingProfileAndEntries] = useState(false);
+  // This local state is no longer needed as StreakManagement handles its own data
+  // const [userProfileData, setUserProfileData] = useState<Profile | null>(null);
+  // const [journalEntriesData, setJournalEntriesData] = useState<JournalEntry[]>([]);
+  // const [isLoadingProfileAndEntries, setIsLoadingProfileAndEntries] = useState(false);
   const [showStreakModalViaButton, setShowStreakModalViaButton] = useState(false);
 
   // const currentUserId = useMemo(() => session?.user.id, [session]);
@@ -99,58 +100,6 @@ function JournalLayout() {
       setProjectName(null); // Reset if no longer on a project page or no projectId
     }
   }, [projectId, supabase]);
-
-  useEffect(() => {
-    if (supabase && currentUserId) {
-      setIsLoadingProfileAndEntries(true);
-      const fetchProfile = async () => {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", currentUserId)
-          .single();
-        if (error) {
-          console.error("Error fetching profile:", error);
-          setUserProfileData(null); // Set to null on error
-          return null;
-        }
-        return data;
-      };
-
-      const fetchEntries = async () => {
-        const { data, error } = await supabase
-          .from("journal_entries")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: false }); 
-        if (error) {
-          console.error("Error fetching journal entries:", error);
-          setJournalEntriesData([]); // Set to empty array on error
-          return [];
-        }
-        return data || [];
-      };
-
-      Promise.all([fetchProfile(), fetchEntries()])
-        .then(([profile, entries]) => {
-          setUserProfileData(profile);
-          setJournalEntriesData(entries || []);
-        })
-        // Catching potential errors from Promise.all if one of the fetches fails critically
-        .catch(error => {
-          console.error("Error in Promise.all for profile/entries:", error);
-          setUserProfileData(null);
-          setJournalEntriesData([]);
-        })
-        .finally(() => {
-          setIsLoadingProfileAndEntries(false);
-        });
-    } else {
-      setUserProfileData(null);
-      setJournalEntriesData([]);
-      setIsLoadingProfileAndEntries(false); 
-    }
-  }, [supabase, currentUserId]);
 
   const getBreadcrumbPath = () => {
     const path = routerState.location.pathname;
@@ -227,7 +176,7 @@ function JournalLayout() {
                 variant="outline"
                 size="sm" // Making button a bit smaller to fit nicely
                 onClick={() => setShowStreakModalViaButton(true)}
-                disabled={isLoadingProfileAndEntries || !userProfileData}
+                // disabled={isLoadingProfileAndEntries || !userProfileData} // No longer needed
                 className="text-[#2f2569] dark:text-white border-[#2f2569]/50 dark:border-white/50 hover:bg-[#2f2569]/5 dark:hover:bg-white/5"
               >
                 View Streak
@@ -242,12 +191,10 @@ function JournalLayout() {
           <Outlet />
         </main>
         {/* Render StreakManagement if data is available */}
-        {supabase && currentUserId && userProfileData && !isLoadingProfileAndEntries && (
+        {supabase && currentUserId && (
           <StreakManagement
             supabase={supabase}
             userId={currentUserId}
-            userProfile={userProfileData}
-            journalEntries={journalEntriesData}
             externallyTriggeredOpen={showStreakModalViaButton}
             onClose={() => setShowStreakModalViaButton(false)}
           />
