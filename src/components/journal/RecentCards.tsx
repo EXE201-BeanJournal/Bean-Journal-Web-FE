@@ -149,7 +149,7 @@ const RecentCards: React.FC<RecentCardsProps> = ({
         </div>
         <div
           ref={scrollContainerRef}
-          className="no-scrollbar flex overflow-x-auto pb-4 gap-5 scroll-smooth scroll-snap-type-x-mandatory w-full"
+          className="no-scrollbar flex overflow-x-auto pb-4 pt-4 gap-5 scroll-smooth scroll-snap-type-x-mandatory w-full"
         >
           {/* Placeholder card for creating a new tag */}
           <div

@@ -6,6 +6,7 @@ import RecentCards from "./RecentCards";
 import TagCreateModal from "./TagCreateModal";
 import TagEditModal from "./TagEditModal";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import { toast } from "sonner";
 
 interface TagSectionProps {
   supabase: SupabaseClient;
@@ -16,7 +17,6 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
   const [tags, setTags] = useState<Tag[]>([]);
   const [isTagCreateModalOpen, setIsTagCreateModalOpen] = useState(false);
   const [loadingTags, setLoadingTags] = useState(false);
-  const [tagError, setTagError] = useState<string | null>(null);
   const [editingTag, setEditingTag] = useState<Tag | null>(null);
   const [isTagEditModalOpen, setIsTagEditModalOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
@@ -27,13 +27,12 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
     const fetchTags = async () => {
       if (!currentUserId) return;
       setLoadingTags(true);
-      setTagError(null);
       try {
         const fetchedTags = await getTagsByUserId(supabase, currentUserId);
         setTags(fetchedTags || []);
       } catch (error) {
         console.error("Failed to fetch tags:", error);
-        setTagError("Failed to load tags.");
+        toast.error("Failed to load tags.");
       }
       setLoadingTags(false);
     };
@@ -46,11 +45,20 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
 
   const handleTagSubmit = async (tagData: { name: string; color_hex: string }) => {
     if (!currentUserId) {
-      setTagError("User not identified. Cannot create tag.");
+      toast.error("User not identified. Cannot create tag.");
       return;
     }
+
+    const isDuplicate = tags.some(
+      (tag) => tag.name.toLowerCase() === tagData.name.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      toast.error(`A tag with the name "${tagData.name}" already exists.`);
+      return;
+    }
+
     setLoadingTags(true);
-    setTagError(null);
     try {
       const newTag = await createTag(supabase, {
         ...tagData,
@@ -58,10 +66,11 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
       });
       if (newTag) {
         setTags((prevTags) => [...prevTags, newTag]);
+        toast.success("Tag created successfully.");
       }
     } catch (error) {
       console.error("Failed to create tag:", error);
-      setTagError("Failed to create tag.");
+      toast.error("Failed to create tag.");
     }
     setIsTagCreateModalOpen(false);
     setLoadingTags(false);
@@ -82,19 +91,33 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
 
   const handleTagUpdate = async (tagData: Partial<Tag>) => {
     if (!editingTag || !editingTag.id) {
-      setTagError("Tag to update not identified.");
+      toast.error("Tag to update not identified.");
       return;
     }
+
+    if (tagData.name) {
+      const isDuplicate = tags.some(
+        (tag) =>
+          tag.name.toLowerCase() === tagData.name?.toLowerCase() &&
+          tag.id !== editingTag.id
+      );
+
+      if (isDuplicate) {
+        toast.error(`A tag with the name "${tagData.name}" already exists.`);
+        return;
+      }
+    }
+
     setLoadingTags(true);
-    setTagError(null);
     try {
       const updated = await updateTag(supabase, editingTag.id, tagData);
       if (updated) {
         setTags((prevTags) => prevTags.map((t) => (t.id === updated.id ? updated : t)));
+        toast.success("Tag updated successfully.");
       }
     } catch (error) {
       console.error("Failed to update tag:", error);
-      setTagError("Failed to update tag.");
+      toast.error("Failed to update tag.");
     }
     setIsTagEditModalOpen(false);
     setEditingTag(null);
@@ -103,17 +126,17 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
 
   const handleConfirmDelete = async () => {
     if (!tagToDelete || !tagToDelete.id) {
-      setTagError("Tag to delete not identified.");
+      toast.error("Tag to delete not identified.");
       return;
     }
     setLoadingTags(true);
-    setTagError(null);
     try {
       await deleteTag(supabase, tagToDelete.id);
       setTags((prevTags) => prevTags.filter((t) => t.id !== tagToDelete.id));
+      toast.success("Tag deleted successfully.");
     } catch (error) {
       console.error("Failed to delete tag:", error);
-      setTagError("Failed to delete tag.");
+      toast.error("Failed to delete tag.");
     }
     setIsConfirmDeleteModalOpen(false);
     setTagToDelete(null);
@@ -125,10 +148,7 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
       {loadingTags && (
         <p className="text-center text-gray-500 py-4">Loading tags...</p>
       )}
-      {tagError && (
-        <p className="text-center text-red-500 py-4">{tagError}</p>
-      )}
-      {!loadingTags && !tagError && (
+      {!loadingTags && (
         <RecentCards
           tags={tags}
           onAddNewTag={handleAddNewTag}
