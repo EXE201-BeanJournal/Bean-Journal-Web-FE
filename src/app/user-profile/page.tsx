@@ -12,6 +12,7 @@ import StreakCard from "@/components/user-profile/StreakCard";
 import MoodChart from "@/components/user-profile/MoodChart";
 import LatestDiaryCard from "@/components/user-profile/LatestDiaryCard";
 import ActivityCard from "@/components/user-profile/ActivityCard";
+import { UserProfilePageSkeleton } from "@/components/skeletons/UserProfilePageSkeleton";
 
 const defaultCoverBg = "rgba(209, 213, 219, 0.5)";
 
@@ -88,6 +89,7 @@ const sortJournalEntriesByTimestamp = (a: JournalEntry, b: JournalEntry) => {
 const UserProfilePage = () => {
   const { user } = useClerk();
   const supabase = useSupabase();
+  const [isLoading, setIsLoading] = useState(true);
   const [averageColor, setAverageColor] = useState<string>(defaultCoverBg);
   const [profileData, setProfileData] = useState<Profile | null>(null);
   const [latestDiary, setLatestDiary] = useState<JournalEntry | null>(null);
@@ -104,36 +106,34 @@ const UserProfilePage = () => {
 
   useEffect(() => {
     if (user?.id && supabase) {
-      getProfileByUserId(supabase, user.id)
-        .then((data: Profile | null) => {
-          setProfileData(data);
-        })
-        .catch((error: Error) =>
-          console.error("Error fetching profile:", error)
-        );
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          const profilePromise = getProfileByUserId(supabase, user.id);
+          const entriesPromise = getJournalEntriesByUserId(supabase, user.id);
 
-      getJournalEntriesByUserId(supabase, user.id)
-        .then(async (data: JournalEntry[] | null) => {
-          if (data && data.length > 0) {
-            setUserJournalEntries(data);
-            const sortedEntries = [...data].sort(sortJournalEntriesByTimestamp);
+          const [profileResult, entriesResult] = await Promise.all([
+            profilePromise,
+            entriesPromise,
+          ]);
+
+          setProfileData(profileResult);
+
+          if (entriesResult && entriesResult.length > 0) {
+            setUserJournalEntries(entriesResult);
+            const sortedEntries = [...entriesResult].sort(
+              sortJournalEntriesByTimestamp
+            );
             const diaryEntry = sortedEntries[0];
             setLatestDiary(diaryEntry);
+
             const parsedContent = parseBlockNoteJsonContent(diaryEntry.content);
             setReadableDiaryContent(parsedContent.textContent);
             setLatestDiaryImageUrl(parsedContent.imageUrl);
 
-            if (diaryEntry.id && supabase) {
-              try {
-                const tags = await getTagsForEntry(
-                  supabase,
-                  diaryEntry.id
-                );
-                setLatestDiaryTags(tags);
-              } catch (error) {
-                console.error("Error fetching tags for diary:", error);
-                setLatestDiaryTags([]);
-              }
+            if (diaryEntry.id) {
+              const tags = await getTagsForEntry(supabase, diaryEntry.id);
+              setLatestDiaryTags(tags);
             }
 
             // Calculate streaked days
@@ -146,13 +146,14 @@ const UserProfilePage = () => {
               dateToCheck.setDate(today.getDate() - i);
               const dateString = dateToCheck.toISOString().split("T")[0];
 
-              const hasEntry = data.some(entry => entry.entry_timestamp?.startsWith(dateString));
+              const hasEntry = entriesResult.some((entry) =>
+                entry.entry_timestamp?.startsWith(dateString)
+              );
               if (hasEntry) {
                 recentStreakedDays.add(dayAbbreviations[dateToCheck.getDay()]);
               }
             }
             setStreakedDays(Array.from(recentStreakedDays));
-
           } else {
             setUserJournalEntries([]);
             setLatestDiary(null);
@@ -160,12 +161,19 @@ const UserProfilePage = () => {
             setLatestDiaryImageUrl(null);
             setLatestDiaryTags([]);
           }
-        })
-        .catch((error: Error) => {
-          console.error("Error fetching journal entries:", error);
+        } catch (error) {
+          console.error("Error fetching user profile data:", error);
+          setProfileData(null);
           setUserJournalEntries([]);
-        });
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchData();
+    } else if (!user) {
+      setIsLoading(false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, supabase]);
 
   useEffect(() => {
@@ -267,6 +275,10 @@ const UserProfilePage = () => {
       }
     };
   }, [user?.imageUrl]);
+
+  if (isLoading) {
+    return <UserProfilePageSkeleton />;
+  }
 
   if (!user) {
     return (

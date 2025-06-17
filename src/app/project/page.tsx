@@ -7,6 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { CalendarDays } from "lucide-react"; // Added for date display
 import { moodOptions } from "@/components/diary/MoodSelector"; // Added for mood display
 import { Image as ImageIcon } from "lucide-react"; // Added for image display
+import { ProjectPageSkeleton } from "@/components/skeletons/ProjectPageSkeleton";
 
 // Helper function to parse BlockNote JSON content (copied from user-profile/page.tsx)
 const parseBlockNoteJsonContent = (
@@ -55,16 +56,14 @@ interface ProjectPageProps {
 const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [isLoadingProject, setIsLoadingProject] = useState(true);
-  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = useSupabase(); // New way
 
   useEffect(() => {
     if (!projectId || !supabase) {
-      // Use supabase from context
-      setIsLoadingProject(false);
+      setIsLoading(false);
       setError(
         projectId
           ? "Could not initialize Supabase client."
@@ -72,41 +71,40 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
       );
       return;
     }
-    setIsLoadingProject(true);
-    setError(null); // Reset error before fetching
-    getProjectById(supabase, projectId) // Pass supabase client
-      .then((data) => {
-        setProject(data);
-        if (!data) setError("Project not found.");
-      })
-      .catch((err) => {
-        console.error("Error fetching project:", err);
+
+    const fetchProjectData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const projectData = await getProjectById(supabase, projectId);
+        setProject(projectData);
+
+        if (projectData && projectData.id) {
+          const entriesData = await getJournalEntriesByProjectId(
+            supabase,
+            projectData.id
+          );
+          setJournalEntries(entriesData || []);
+        } else {
+          setError("Project not found.");
+          setJournalEntries([]);
+        }
+      } catch (err) {
+        console.error("Error fetching project data:", err);
         setError("Failed to load project details.");
-      })
-      .finally(() => setIsLoadingProject(false));
+        setProject(null);
+        setJournalEntries([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjectData();
   }, [projectId, supabase]);
 
-  useEffect(() => {
-    if (!project || !project.id || !supabase) {
-      // Use supabase from context, ensured project and project.id exist
-      setJournalEntries([]);
-      setIsLoadingEntries(project ? true : false); // Only set loading if project was defined
-      return;
-    }
-    setIsLoadingEntries(true);
-    getJournalEntriesByProjectId(supabase, project.id) // Pass supabase client, project.id is now guaranteed to be a string
-      .then((data) => {
-        setJournalEntries(data || []);
-      })
-      .catch((err) => {
-        console.error("Error fetching journal entries for project:", err);
-        // setError('Failed to load journal entries for this project.'); // Avoid overwriting main project error
-      })
-      .finally(() => setIsLoadingEntries(false));
-  }, [project, supabase]); // project.id is implicitly covered by project dependency
-
-  if (isLoadingProject) {
-    return <div className="p-4 text-center">Loading project details...</div>;
+  if (isLoading) {
+    return <ProjectPageSkeleton />;
   }
 
   if (error && !project) {
@@ -166,11 +164,7 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-200">
           Associated Diaries
         </h2>
-        {isLoadingEntries && !journalEntries.length ? (
-          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-            Loading diaries...
-          </div>
-        ) : journalEntries.length > 0 ? (
+        {journalEntries.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {journalEntries.map((entry) => {
               const moodOption = entry.manual_mood_label
