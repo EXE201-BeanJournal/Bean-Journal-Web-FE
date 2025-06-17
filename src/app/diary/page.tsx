@@ -19,6 +19,8 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'; // Added Chevron icons
 import { createGroq } from "@ai-sdk/groq";
 import { Block } from '@blocknote/core';
 import { generateText } from 'ai';
+import { DiaryCardSkeleton } from '@/components/diary/DiaryCardSkeleton';
+import { DiaryDetailViewSkeleton } from '@/components/diary/DiaryDetailViewSkeleton';
 
 // ADDED: Imports for Realtime components
 // import { RealtimeAvatarStack } from '@/components/realtime-avatar-stack'; 
@@ -90,8 +92,8 @@ const DiaryPage = () => {
   const { userId } = useAuth(); // getToken removed as it's not directly used here anymore
   const supabase = useSupabase();
 
+  const [isLoading, setIsLoading] = useState(true);
   const [diaries, setDiaries] = useState<JournalEntryWithTags[]>([]);
-  const [isLoadingDiaries, setIsLoadingDiaries] = useState(true);
   const [selectedDiaryId, setSelectedDiaryId] = useState<string | null>(null);
   // const [rightPanelView, setRightPanelView] = useState<'view' | 'create_deprecated'>('view'); // Removed unused state
   const [error, setError] = useState<string | null>(null);
@@ -99,11 +101,9 @@ const DiaryPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null); // Changed type to Date | null, initialized to null
 
   const [allUserTags, setAllUserTags] = useState<Tag[]>([]);
-  const [isLoadingUserTags, setIsLoadingUserTags] = useState(true);
   const [activeFilterTagIds, setActiveFilterTagIds] = useState<string[]>([]);
 
   const [allUserProjects, setAllUserProjects] = useState<Project[]>([]); // ADDED: State for user projects
-  const [isLoadingUserProjects, setIsLoadingUserProjects] = useState(true); // ADDED: State for loading projects
   const [activeFilterProjectId, setActiveFilterProjectId] = useState<string | null>(null); // ADDED: State for active project filter
 
   const [aiSummary, setAiSummary] = useState<string | null>(null);
@@ -192,7 +192,7 @@ const DiaryPage = () => {
       }
 
       // Attempt to process if diaries are loaded and entryId is pending
-      if (!isLoadingDiaries && diaries.length > 0 && entryIdFromUrlRef.current) {
+      if (!isLoading && diaries.length > 0 && entryIdFromUrlRef.current) {
         const diaryToSelect = diaries.find(d => d.id === entryIdFromUrlRef.current);
         if (diaryToSelect) {
           setSelectedDiaryId(diaryToSelect.id!);
@@ -219,91 +219,70 @@ const DiaryPage = () => {
       // This handles cases where the user navigates away from an entryId-specific URL.
       entryIdFromUrlRef.current = null;
     }
-  }, [search.entryId, diaries, isLoadingDiaries, navigate, routerLocation.pathname, setSelectedDiaryId]);
+  }, [search.entryId, diaries, isLoading, navigate, routerLocation.pathname, setSelectedDiaryId]);
 
   // Fetch initial diaries and user tags
   useEffect(() => {
-    if (userId && supabase) { // Check for supabase client availability
-      setIsLoadingDiaries(true);
-      getJournalEntriesByUserId(supabase, userId)
-        .then(async fetchedDiaries => {
-          if (!fetchedDiaries) {
+    if (userId && supabase) {
+      const startTime = Date.now();
+      const minDisplayTime = 2000; // Minimum 2 seconds display time
+
+      const fetchData = async () => {
+        try {
+          const [fetchedDiaries, tags, projects] = await Promise.all([
+            getJournalEntriesByUserId(supabase, userId),
+            getTagsByUserId(supabase, userId),
+            getProjectsByUserId(supabase, userId)
+          ]);
+
+          if (fetchedDiaries) {
+            const diariesWithTagsPromises = fetchedDiaries.map(async (diary) => {
+              if (!diary.id) return { ...diary, tag_ids: [] };
+              try {
+                const entryTags = await getEntryTagsByEntryId(supabase, diary.id);
+                const tagIds = entryTags.map(et => et.tag_id);
+                return { ...diary, tag_ids: tagIds };
+              } catch (tagError) {
+                console.error(`Error fetching tags for diary ${diary.id}:`, tagError);
+                return { ...diary, tag_ids: [] };
+              }
+            });
+
+            const diariesWithTags = await Promise.all(diariesWithTagsPromises);
+            const sortedDiaries = diariesWithTags.sort(sortDiariesByEntryTimestamp);
+            setDiaries(sortedDiaries);
+
+            const isMobile = window.matchMedia("(max-width: 767px)").matches;
+            if (sortedDiaries.length > 0 && !entryIdFromUrlRef.current) {
+              !isMobile && setSelectedDiaryId(currentSelectedId =>
+                currentSelectedId === null ? sortedDiaries[0].id! : currentSelectedId
+              );
+            } else if (sortedDiaries.length === 0) {
+              setSelectedDiaryId(null);
+            }
+          } else {
             setDiaries([]);
             setSelectedDiaryId(null);
-            setIsLoadingDiaries(false);
-            return;
           }
-
-          // Fetch tags for each diary
-          const diariesWithTagsPromises = fetchedDiaries.map(async (diary) => {
-            if (!diary.id) return { ...diary, tag_ids: [] }; // Should not happen if ID is guaranteed
-            try {
-              const entryTags = await getEntryTagsByEntryId(supabase, diary.id);
-              const tagIds = entryTags.map(et => et.tag_id);
-              return { ...diary, tag_ids: tagIds };
-            } catch (tagError) {
-              console.error(`Error fetching tags for diary ${diary.id}:`, tagError);
-              return { ...diary, tag_ids: [] }; // Default to empty tags on error for this specific diary
-            }
-          });
-
-          const diariesWithTags = await Promise.all(diariesWithTagsPromises);
-
-          const sortedDiaries = diariesWithTags.sort(sortDiariesByEntryTimestamp);
-          setDiaries(sortedDiaries);
-
-          // On desktop, select the first diary if none is selected. On mobile, wait for user selection.
-          const isMobile = window.matchMedia("(max-width: 767px)").matches;
-          // Default selection logic:
-          // Only set a default if no entryId from URL is currently being processed (indicated by entryIdFromUrlRef.current)
-          // and if no diary is already selected.
-          if (sortedDiaries.length > 0 && !entryIdFromUrlRef.current) {
-            !isMobile && setSelectedDiaryId(currentSelectedId => {
-              // If nothing is selected yet (currentSelectedId is null), select the first diary.
-              // Otherwise, keep the existing selection.
-              return currentSelectedId === null ? sortedDiaries[0].id! : currentSelectedId;
-            });
-          } else if (sortedDiaries.length === 0) {
-            // If there are no diaries at all, ensure nothing is selected.
-            setSelectedDiaryId(null);
-          }
-          // If entryIdFromUrlRef.current has a value, it means the other effect is trying to select a diary based on URL.
-          // We let that effect complete. If it successfully selects a diary, currentSelectedId will be non-null here.
-          // If it fails (e.g., invalid entryId), selectedDiaryId will remain null, and if entryIdFromUrlRef.current is then cleared,
-          // this logic (potentially on a future re-run if deps change) would pick the default.
-
-          setIsLoadingDiaries(false);
-        })
-        .catch(err => {
-          console.error("Error fetching diaries:", err);
-          setError("Failed to load diaries.");
-          setIsLoadingDiaries(false);
-        });
-
-      setIsLoadingUserTags(true);
-      getTagsByUserId(supabase, userId)
-        .then(tags => {
+          
           setAllUserTags(tags || []);
-          setIsLoadingUserTags(false);
-        })
-        .catch(err => {
-          console.error("Error fetching user tags:", err);
-          // Optionally set an error state for tags
-          setIsLoadingUserTags(false);
-        });
-
-      // Fetch user projects
-      setIsLoadingUserProjects(true);
-      getProjectsByUserId(supabase, userId)
-        .then(projects => {
           setAllUserProjects(projects || []);
-          setIsLoadingUserProjects(false);
-        })
-        .catch(err => {
-          console.error("Error fetching user projects:", err);
-          // Optionally set an error state for projects
-          setIsLoadingUserProjects(false);
-        });
+
+        } catch (err) {
+          console.error("Error fetching initial data:", err);
+          setError("Failed to load data. Please try refreshing the page.");
+        } finally {
+            const elapsedTime = Date.now() - startTime;
+            const remainingTime = minDisplayTime - elapsedTime;
+            if (remainingTime > 0) {
+                setTimeout(() => setIsLoading(false), remainingTime);
+            } else {
+                setIsLoading(false);
+            }
+        }
+      };
+
+      fetchData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, supabase]); // Note: selectedDiaryId removed from deps to avoid loop with entryId effect, entryIdFromUrlRef added for conditional default selection
@@ -527,6 +506,23 @@ const DiaryPage = () => {
     return <div className="p-8 text-center">Please sign in to view your diaries.</div>;
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-100px)] bg-slate-50 text-foreground">
+        <aside className="w-full md:w-1/3 lg:w-1/4 p-4 md:p-6 border-r border-slate-200 overflow-y-auto bg-white">
+          <div className="space-y-4">
+            <DiaryCardSkeleton />
+            <DiaryCardSkeleton />
+            <DiaryCardSkeleton />
+          </div>
+        </aside>
+        <main className="flex-1 w-full md:w-2/3 lg:w-3/4 p-4 md:p-8 overflow-y-auto bg-[#E4EFE7]/50 rounded-tl-2xl md:rounded-tl-none">
+          <DiaryDetailViewSkeleton />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col md:flex-row h-full md:h-[calc(100vh-100px)] bg-slate-50 text-foreground"> 
       <aside className={`w-full md:w-1/3 lg:w-1/4 p-4 md:p-6 border-r border-slate-200 overflow-y-auto bg-white ${selectedDiaryId ? 'hidden md:block' : 'block'}`}>
@@ -540,7 +536,7 @@ const DiaryPage = () => {
 
           <button 
             onClick={handleCreateNew}
-            disabled={isLoadingDiaries} // Disable button while loading/creating
+            disabled={false} // No longer tied to a specific loading state
             className="w-full mt-3 mb-3 px-4 py-2 text-sm font-medium text-black bg-[#DAE6D4] rounded-lg hover:bg-[#DAE6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#DAE6D4] transition-colors disabled:opacity-50"
           >
             + Create New Diary
@@ -562,9 +558,7 @@ const DiaryPage = () => {
           {/* Tag Filters Section */}
           <div className="mt-4">
             <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Tags:</h2>
-            {isLoadingUserTags ? (
-              <p className="text-xs text-slate-400">Loading tags...</p>
-            ) : allUserTags.length > 0 ? (
+            {allUserTags.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {allUserTags.map(tag => (
                   <button
@@ -589,9 +583,7 @@ const DiaryPage = () => {
           {/* Project Filters Section */}
           <div className="mt-4">
             <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Project:</h2>
-            {isLoadingUserProjects ? (
-              <p className="text-xs text-slate-400">Loading projects...</p>
-            ) : allUserProjects.length > 0 ? (
+            {allUserProjects.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {allUserProjects.map(project => (
                   <button
@@ -703,9 +695,7 @@ const DiaryPage = () => {
           </div>
         </header>
 
-        {isLoadingDiaries ? (
-          <p className="text-slate-500 text-center py-10">Loading diaries...</p>
-        ) : error ? (
+        {error ? (
           <p className="text-red-500 text-center py-10">{error}</p>
         ) : filteredDiaries.length > 0 ? (
           <div className="space-y-3">
@@ -777,10 +767,6 @@ const DiaryPage = () => {
               userId={userId}
               supabase={supabase}
             />
-          ) : isLoadingDiaries ? (
-            <div className="text-center py-10 flex flex-col items-center justify-center h-full">
-              <h2 className="text-2xl font-semibold text-slate-600">Loading...</h2>
-            </div>
           ) : diaries.length === 0 ? (
             <div className="text-center py-10 flex flex-col items-center justify-center h-full">
               <h2 className="text-2xl font-semibold text-slate-600">

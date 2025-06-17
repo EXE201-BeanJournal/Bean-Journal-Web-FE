@@ -23,6 +23,9 @@ import StreakManagement from "../../components/journal/StreakManagement"; // Imp
 import MobileBlocker from "../../components/journal/MobileBlocker";
 import LandscapeBlocker from "../../components/journal/LandscapeBlocker";
 import { useMediaQuery } from 'react-responsive';
+import { HeaderCardSkeleton } from "@/components/journal/HeaderCardSkeleton";
+import { TagSectionSkeleton } from "@/components/journal/TagSectionSkeleton";
+import { JournalCalendarSectionSkeleton } from "@/components/journal/JournalCalendarSectionSkeleton";
 
 // Update the route path to make it a child of the journal root
 export const Route = createFileRoute("/journal/")({
@@ -279,53 +282,44 @@ function Homepage() {
 
   // const [showDebugButton, setShowDebugButton] = useState(false);  const [debugStreakKey, setDebugStreakKey] = useState(0); // Key to force StreakManagement update
 
+  // Unified loading and error states
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   // Profile related state
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(false);
-  const [profileError, setProfileError] = useState<string | null>(null);
 
   // Journal Entry related state - partially kept for HeaderCard, main logic moved to JournalCalendarSection
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [loadingJournalEntries, setLoadingJournalEntries] = useState(false);
-  const [journalEntryError, setJournalEntryError] = useState<string | null>(null);
 
   // State for the StreakManagement modal in this specific page instance
   const [showStreakModalHomepage, setShowStreakModalHomepage] = useState(false);
 
-  // Fetch profile on component mount
+  // Fetch profile and entries on component mount
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!userId || !supabase) return; // Check for supabase client
-      setLoadingProfile(true);
-      setProfileError(null);
-      try {
-        const profile = await getProfileByUserId(supabase, userId);
-        setUserProfile(profile);
-      } catch (error) {
-        console.error("Failed to fetch profile:", error);
-        setProfileError("Failed to load user profile.");
+    const fetchData = async () => {
+      if (!userId || !supabase) {
+        setIsLoading(false);
+        return;
       }
-      setLoadingProfile(false);
-    };
-    fetchProfile();
-  }, [userId, supabase]);
 
-  // Fetch journal entries on component mount (kept for other components like HeaderCard)
-  useEffect(() => {
-    const fetchJournalEntries = async () => {
-      if (!userId || !supabase) return; // Check for supabase client
-      setLoadingJournalEntries(true);
-      setJournalEntryError(null);
       try {
-        const fetchedEntries = await getJournalEntriesByUserId(supabase, userId);
+        const [profile, fetchedEntries] = await Promise.all([
+            getProfileByUserId(supabase, userId),
+            getJournalEntriesByUserId(supabase, userId)
+        ]);
+        
+        setUserProfile(profile);
         setJournalEntries(fetchedEntries || []);
-      } catch (error) {
-        console.error("Failed to fetch journal entries:", error);
-        setJournalEntryError("Failed to load journal entries.");
+
+      } catch (fetchError) {
+        console.error("Failed to fetch initial data:", fetchError);
+        setError("Failed to load your journal. Please try again later.");
+      } finally {
+        setIsLoading(false);
       }
-      setLoadingJournalEntries(false);
     };
-    fetchJournalEntries();
+    fetchData();
   }, [userId, supabase]);
 
   // const handleDebugClick = () => {
@@ -342,36 +336,39 @@ function Homepage() {
     return isLandscape ? <LandscapeBlocker /> : <MobileBlocker />;
   }
 
+  if (isLoading) {
+    return (
+      <>
+        <style>{animationStyles}</style>
+        <div className="h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
+          <HeaderCardSkeleton />
+          <TagSectionSkeleton />
+          <JournalCalendarSectionSkeleton />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <style>{animationStyles}</style>
       <div className="h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
-        {loadingJournalEntries && (
-          <p className="text-center text-gray-500 py-4">Loading journal entries...</p>
+        {error && (
+          <p className="text-center text-red-500 py-4">{error}</p>
         )}
-        {journalEntryError && (
-          <p className="text-center text-red-500 py-4">{journalEntryError}</p>
-        )}
-        {loadingProfile && (
-          <p className="text-center text-gray-500 py-4">Loading profile...</p>
-        )}
-        {profileError && (
-          <p className="text-center text-red-500 py-4">{profileError}</p>
-        )}
-        {!loadingJournalEntries && !journalEntryError && userProfile && journalEntries.length > 0 && (
+        
+        {!error && userProfile && journalEntries.length > 0 && (
           <HeaderCard journalEntries={journalEntries} userProfile={userProfile} />
         )}
         {/* Render TagSection if supabase and userId are available */} 
-        {supabase && userId && <TagSection supabase={supabase} currentUserId={userId} />}
+        {supabase && userId && !error && <TagSection supabase={supabase} currentUserId={userId} />}
 
         {/* Render JournalCalendarSection, passing fetched data and loading/error states */} 
-        {supabase && userId && (
+        {supabase && userId && !error && (
             <JournalCalendarSection 
                 journalEntries={journalEntries} 
-                loadingJournalEntries={loadingJournalEntries}
-                journalEntryError={journalEntryError}
-                // Supabase client will be implicitly available to services if they are refactored or if this component passes it down
-                // For now, assuming services called within JournalCalendarSection will need to be adapted or receive the client
+                loadingJournalEntries={false}
+                journalEntryError={null}
             />
         )}
 

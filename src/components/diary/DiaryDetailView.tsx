@@ -179,7 +179,7 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
   );
 
   const client = createBlockNoteAIClient({
-    apiKey: "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",
+    apiKey: import.meta.env.BLOCKNOTE_AI_SERVER_API_KEY,
     baseURL: "https://api.groq.com/openai/v1/chat/completions",
   });
 
