@@ -16,4 +16,7 @@ export * from './storageService';
 export * from './tagService';
 export * from './themeService';
 export * from './todoItemService';
-export * from './userIntegrationService'; 
+export * from './userIntegrationService';
+export * from './memoryZoneService';
+export * from './memoryZoneContentService';
+export * from './memoryZoneCollaboratorService'; 

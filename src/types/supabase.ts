@@ -264,4 +264,30 @@ export interface FacebookShare {
   share_link_used?: string; // TEXT
   share_caption?: string; // TEXT
   share_description?: string; // TEXT
+}
+
+export interface MemoryZone {
+  id?: string; // UUID
+  owner_id: string; // TEXT
+  title: string; // TEXT
+  created_at?: string; // TIMESTAMPTZ
+  updated_at?: string; // TIMESTAMPTZ
+}
+
+export interface MemoryZoneContent {
+  memory_zone_id: string; // UUID
+  doc_state_storage_path?: string; // TEXT
+  doc_state_version?: string; // TEXT
+  last_updated_by?: string; // TEXT
+  updated_at?: string; // TIMESTAMPTZ
+}
+
+export interface MemoryZoneCollaborator {
+  id?: string; // UUID
+  memory_zone_id: string; // UUID
+  user_id: string; // TEXT
+  permission_level: 'view' | 'comment' | 'edit'; // TEXT
+  invited_by?: string; // TEXT
+  joined_at?: string; // TIMESTAMPTZ
+  created_at?: string; // TIMESTAMPTZ
 } 
