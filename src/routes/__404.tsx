@@ -43,7 +43,7 @@ export function NotFoundPageContent() {
             duration: prop.duration,
             repeat: Infinity,
             delay: prop.delay,
-            ease: "linear",
+            ease: "linear" as const,
           }}
         >
           <Leaf className={prop.size} />
