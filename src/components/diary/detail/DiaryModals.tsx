@@ -13,6 +13,7 @@ interface DiaryModalsProps {
   handleShareConfirmOk: () => void;
   handleShareConfirmCancel: () => void;
   sharePreviewImageUri: string | null;
+  sharePlatform: "facebook" | "linkedin" | null;
 }
 
 const DiaryModals: React.FC<DiaryModalsProps> = ({
@@ -27,7 +28,15 @@ const DiaryModals: React.FC<DiaryModalsProps> = ({
   handleShareConfirmOk,
   handleShareConfirmCancel,
   sharePreviewImageUri,
+  sharePlatform,
 }) => {
+  const platformName =
+    sharePlatform === "facebook"
+      ? "Facebook"
+      : sharePlatform === "linkedin"
+      ? "LinkedIn"
+      : "";
+
   return (
     <>
       {currentVideoUrl && (
@@ -66,7 +75,7 @@ const DiaryModals: React.FC<DiaryModalsProps> = ({
       </AntModal>
 
       <AntModal
-        title="Confirm Share to Facebook"
+        title={`Confirm Share to ${platformName}`}
         open={isShareConfirmVisible}
         onOk={handleShareConfirmOk}
         onCancel={handleShareConfirmCancel}
@@ -76,8 +85,8 @@ const DiaryModals: React.FC<DiaryModalsProps> = ({
       >
         <div className="space-y-4">
           <p>
-            You are about to share a preview of this journal entry to your
-            Facebook timeline. Does this look right?
+            You are about to share a preview of this journal entry to your{" "}
+            {platformName} timeline. Does this look right?
           </p>
           {sharePreviewImageUri && (
             <div className="border rounded-lg p-2 bg-gray-50">

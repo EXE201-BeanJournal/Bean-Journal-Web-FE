@@ -47,6 +47,7 @@ import DiaryEditor from "./detail/DiaryEditor";
 import DiaryModals from "./detail/DiaryModals";
 import { generateJournalImage } from "@/services/imageGenerationService";
 import { createFacebookShare } from "@/services/facebookShareService";
+import { createLinkedInShare } from "@/services/linkedInShareService";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -88,6 +89,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   );
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
   const [isShareConfirmVisible, setIsShareConfirmVisible] = useState(false);
+  const [sharePlatform, setSharePlatform] = useState<"facebook" | "linkedin" | null>(null);
   const [sharePreviewImageUri, setSharePreviewImageUri] = useState<
     string | null
   >(null);
@@ -730,9 +732,16 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     setIsDeleteConfirmVisible(false);
   };
 
-  const showShareConfirm = async () => {
+  const handleShareConfirmCancel = () => {
+    setIsShareConfirmVisible(false);
+    setSharePreviewImageUri(null);
+    setSharePlatform(null);
+  };
+
+  const showShareConfirm = async (platform: "facebook" | "linkedin") => {
     setIsSharing(true);
     setShareError(null);
+    setSharePlatform(platform);
     try {
       const tagsForImage = availableTags.filter((tag) =>
         selectedTagIds.includes(tag.id!)
@@ -750,13 +759,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     }
   };
 
-  const handleShareConfirmCancel = () => {
-    setIsShareConfirmVisible(false);
-    setSharePreviewImageUri(null);
-  };
-
   const handleShareConfirmOk = async () => {
-    if (!diary.id || !userId || !supabase || !sharePreviewImageUri) {
+    if (!diary.id || !userId || !supabase || !sharePreviewImageUri || !sharePlatform) {
       console.error("Cannot generate share, missing context or preview image.");
       setShareError(
         "An unexpected error occurred. Missing context or preview image."
@@ -799,31 +803,48 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         throw new Error("Failed to get public URL for share image.");
       }
 
-      // Create Facebook share record
-      await createFacebookShare(supabase, {
-        user_id: userId,
-        journal_entry_id: diary.id,
-        preview_image_path: filePath,
-        preview_image_url_cached: imageUrl,
-      });
-
-      // Open Facebook Share Dialog with the direct image URL
       const tagNames = availableTags
         .filter((t) => selectedTagIds.includes(t.id!))
         .map((t) => `#${t.name}`)
         .join(" ");
-      const quote = `Check out my journal! ${tagNames}`;
-      const hashtag = encodeURIComponent("#BeanJournal");
-      const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-        imageUrl
-      )}&quote=${encodeURIComponent(quote)}&hashtag=${hashtag}`;
-      window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
+
+      if (sharePlatform === "facebook") {
+        await createFacebookShare(supabase, {
+          user_id: userId,
+          journal_entry_id: diary.id,
+          preview_image_path: filePath,
+          preview_image_url_cached: imageUrl,
+        });
+  
+        const quote = `Check out my journal! ${tagNames}`;
+        const hashtag = encodeURIComponent("#BeanJournal");
+        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+          imageUrl
+        )}&quote=${encodeURIComponent(quote)}&hashtag=${hashtag}`;
+        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
+
+      } else if (sharePlatform === "linkedin") {
+        await createLinkedInShare(supabase, {
+          user_id: userId,
+          journal_entry_id: diary.id,
+          preview_image_path: filePath,
+          preview_image_url_cached: imageUrl,
+        });
+
+        const title = diary.title || 'My Journal Entry';
+        const summary = `Check out my journal! ${tagNames}`;
+        const source = 'Bean Journal';
+        const linkedInShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(imageUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(summary)}&source=${encodeURIComponent(source)}`;
+        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
+      }
+
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setShareError(message || "An unexpected error occurred during sharing.");
     } finally {
       setIsSharing(false);
       setSharePreviewImageUri(null);
+      setSharePlatform(null);
     }
   };
 
@@ -847,7 +868,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         isSaving={isSaving}
         hasUnsavedChanges={hasUnsavedChanges}
         showDeleteConfirm={showDeleteConfirm}
-        onShareToFacebook={showShareConfirm}
+        onShareToFacebook={() => showShareConfirm("facebook")}
+        onShareToLinkedIn={() => showShareConfirm("linkedin")}
         isSharing={isSharing}
       />
 
@@ -880,6 +902,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         handleShareConfirmOk={handleShareConfirmOk}
         handleShareConfirmCancel={handleShareConfirmCancel}
         sharePreviewImageUri={sharePreviewImageUri}
+        sharePlatform={sharePlatform}
       />
     </div>
   );
