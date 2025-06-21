@@ -22,7 +22,7 @@ export const getJournalEntriesByProjectId = async (supabase: SupabaseClient, pro
   try {
     const { data } = await supabase
       .from('journal_entries')
-      .select('*')
+      .select('*, todo_items(*)')
       .eq('project_id', projectId)
       .order('entry_timestamp', { ascending: false })
       .throwOnError();

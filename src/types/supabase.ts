@@ -34,6 +34,7 @@ export interface JournalEntry {
   created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   project_id?: string | null; // UUID NULL
+  todo_items?: TodoItem[]; // Added for project page
 }
 
 export interface MediaAttachment {

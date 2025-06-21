@@ -4,7 +4,7 @@ import { getJournalEntriesByProjectId } from "@/services/journalEntryService"; /
 import type { Project, JournalEntry } from "@/types/supabase";
 import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
 import { Link } from "@tanstack/react-router";
-import { CalendarDays } from "lucide-react"; // Added for date display
+import { CalendarDays, CheckCircle2, Circle, ListTodo } from "lucide-react"; // Added for date display and todos
 import { moodOptions } from "@/components/diary/MoodSelector"; // Added for mood display
 import { Image as ImageIcon } from "lucide-react"; // Added for image display
 import { ProjectPageSkeleton } from "@/components/skeletons/ProjectPageSkeleton";
@@ -170,71 +170,118 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
               const moodOption = entry.manual_mood_label
                 ? moodOptions.find((m) => m.value === entry.manual_mood_label)
                 : null;
-              const { imageUrl } = parseBlockNoteJsonContent(entry.content);
+              const { imageUrl, textContent } = parseBlockNoteJsonContent(
+                entry.content
+              );
+              const todos = entry.todo_items || [];
+              const completedTodos = todos.filter((t) => t.is_completed).length;
 
               return (
-                <Link to={`/journal/diary`} search={{ entryId: entry.id }}>
-                  <div
-                    key={entry.id}
-                    className="p-4 rounded-lg shadow-md flex gap-4 items-start group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-700/70 dark:hover:bg-slate-700/90 dark:border-slate-600 dark:hover:border-slate-500"
+                <div
+                  key={entry.id}
+                  className="rounded-lg shadow-md flex flex-col group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-800/70 dark:hover:bg-slate-800/90 dark:border-slate-700 dark:hover:border-slate-600"
+                >
+                  <Link
+                    to={`/journal/diary`}
+                    search={{ entryId: entry.id }}
+                    className="block p-4"
                   >
-                    {/* Image Section (Left) */}
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-gray-200 dark:bg-slate-600/50 rounded-lg flex items-center justify-center overflow-hidden">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt="Diary image"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon
-                          size={32}
-                          className="text-gray-400 dark:text-slate-500"
-                        />
-                      )}
-                    </div>
-
-                    {/* Content Section (Right) */}
-                    <div className="flex-grow flex flex-col min-w-0 h-full">
-                      {" "}
-                      {/* h-full to allow mt-auto for date*/}
-                      <div className="flex justify-between items-start mb-1">
-                        <h3
-                          className="text-lg font-semibold text-slate-700 dark:text-slate-200 truncate mr-2 flex-grow"
-                          style={{ fontFamily: "Readex Pro, sans-serif" }}
-                        >
-                          <Link
-                            to={`/journal/diary`}
-                            search={{ entryId: entry.id }}
-                            className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
-                          >
-                            {entry.title || "Untitled Entry"}
-                          </Link>
-                        </h3>
-                        {moodOption && (
+                    <div className="flex gap-4 items-start">
+                      {/* Image Section (Left) */}
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-gray-200 dark:bg-slate-700/50 rounded-lg flex items-center justify-center overflow-hidden">
+                        {imageUrl ? (
                           <img
-                            src={moodOption.emojiPath}
-                            alt={moodOption.label}
-                            className="w-6 h-6 flex-shrink-0"
-                            title={`Mood: ${moodOption.label}`}
+                            src={imageUrl}
+                            alt="Diary image"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon
+                            size={32}
+                            className="text-gray-400 dark:text-slate-500"
                           />
                         )}
                       </div>
-                      {/* Spacer to push date to bottom */}
-                      <div className="flex-grow"></div>
-                      <div
-                        className="flex items-center text-xs text-slate-400 dark:text-slate-500 pt-1"
-                        style={{ fontFamily: "Readex Pro, sans-serif" }}
-                      >
-                        <CalendarDays
-                          size={14}
-                          className="mr-1.5 flex-shrink-0"
-                        />
-                        <span>{formatDate(entry.entry_timestamp)}</span>
+
+                      {/* Content Section (Right) */}
+                      <div className="flex-grow flex flex-col min-w-0 h-full">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3
+                            className="text-lg font-semibold text-slate-700 dark:text-slate-200 truncate mr-2 flex-grow"
+                            style={{ fontFamily: "Readex Pro, sans-serif" }}
+                          >
+                            {entry.title || "Untitled Entry"}
+                          </h3>
+                          {moodOption && (
+                            <img
+                              src={moodOption.emojiPath}
+                              alt={moodOption.label}
+                              className="w-6 h-6 flex-shrink-0"
+                              title={`Mood: ${moodOption.label}`}
+                            />
+                          )}
+                        </div>
+
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
+                          {textContent}
+                        </p>
+                        <div className="flex-grow"></div>
+                        <div
+                          className="flex items-center text-xs text-slate-400 dark:text-slate-500 pt-1"
+                          style={{ fontFamily: "Readex Pro, sans-serif" }}
+                        >
+                          <CalendarDays
+                            size={14}
+                            className="mr-1.5 flex-shrink-0"
+                          />
+                          <span>{formatDate(entry.entry_timestamp)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  {/* To-do List Section */}
+                  {todos.length > 0 && (
+                    <div className="border-t border-[#DDE8DA] dark:border-slate-700 mt-2 pt-3 pb-4 px-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center text-sm font-semibold text-slate-600 dark:text-slate-300">
+                          <ListTodo size={16} className="mr-2" />
+                          <span>To-Do List</span>
+                        </div>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {completedTodos}/{todos.length} Done
+                        </span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {todos.slice(0, 3).map((todo) => ( // Show max 3 todos
+                          <li
+                            key={todo.id}
+                            className="flex items-center text-sm text-slate-600 dark:text-slate-300"
+                          >
+                            {todo.is_completed ? (
+                              <CheckCircle2
+                                size={14}
+                                className="mr-2 flex-shrink-0 text-green-500"
+                              />
+                            ) : (
+                              <Circle
+                                size={14}
+                                className="mr-2 flex-shrink-0 text-slate-400"
+                              />
+                            )}
+                            <span className={`truncate ${todo.is_completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                              {todo.task_description}
+                            </span>
+                          </li>
+                        ))}
+                        {todos.length > 3 && (
+                            <li className="text-xs text-center text-slate-500 dark:text-slate-400 pt-1">
+                                +{todos.length - 3} more...
+                            </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
