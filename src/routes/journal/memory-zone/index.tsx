@@ -215,7 +215,7 @@ function MemoryZoneListPage() {
                         <span className="sr-only">Settings</span>
                       </Button>
                     </SheetTrigger>
-                    <SheetContent>
+                    <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
                       <SheetHeader>
                         <SheetTitle>{zone.title} Settings</SheetTitle>
                         <SheetDescription>
@@ -223,7 +223,7 @@ function MemoryZoneListPage() {
                         </SheetDescription>
                       </SheetHeader>
                       <div className="py-4">
-                        <MemoryZoneSettings zone={zone} />
+                        <MemoryZoneSettings zone={zone} onUpdate={fetchMemoryZones} />
                       </div>
                     </SheetContent>
                   </Sheet>

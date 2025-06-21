@@ -10,22 +10,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { X, UserPlus, Crown, Loader2 } from 'lucide-react';
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { updateMemoryZone, deleteMemoryZone } from '@/services/memoryZoneService';
+import { useNavigate, useRouter } from '@tanstack/react-router';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 
 interface MemoryZoneSettingsProps {
   zone: MemoryZone;
+  onUpdate?: () => void;
 }
 
 type CollaboratorWithProfile = MemoryZoneCollaborator & { profile: CollaboratorProfile | null };
 
-export function MemoryZoneSettings({ zone }: MemoryZoneSettingsProps) {
+export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) {
   const supabase = useSupabase();
   const { userId } = useAuth();
+  const router = useRouter();
+  const navigate = useNavigate();
 
   const [collaborators, setCollaborators] = useState<CollaboratorWithProfile[]>([]);
   const [ownerProfile, setOwnerProfile] = useState<CollaboratorProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
+  const [zoneTitle, setZoneTitle] = useState(zone.title);
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const isOwner = userId === zone.owner_id;
 
@@ -65,6 +76,39 @@ export function MemoryZoneSettings({ zone }: MemoryZoneSettingsProps) {
   useEffect(() => {
     fetchCollaborators();
   }, [fetchCollaborators]);
+
+  const handleTitleChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!supabase || !isOwner || !zoneTitle.trim() || zoneTitle.trim() === zone.title) return;
+
+    setIsSavingTitle(true);
+    const success = await updateMemoryZone(supabase, zone.id!, { title: zoneTitle.trim() });
+    if (success) {
+        toast.success("Title updated successfully");
+        if(onUpdate) {
+            onUpdate();
+        }
+        await router.invalidate();
+    } else {
+        toast.error("Failed to update title.");
+    }
+    setIsSavingTitle(false);
+  }
+
+  const handleDeleteZone = async () => {
+    if (!supabase || !isOwner) return;
+
+    setIsDeleting(true);
+    const success = await deleteMemoryZone(supabase, zone.id!);
+    if (success) {
+        toast.success("Memory zone deleted successfully");
+        // Close the sheet/dialog by navigating away or having parent close it.
+        navigate({ to: '/journal/memory-zone' });
+    } else {
+        toast.error("Failed to delete memory zone.");
+    }
+    setIsDeleting(false);
+  }
 
   const handleAddCollaborator = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,93 +189,158 @@ export function MemoryZoneSettings({ zone }: MemoryZoneSettingsProps) {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-medium">Members</h3>
-        <p className="text-sm text-muted-foreground">Manage who has access to this memory zone.</p>
-      </div>
-      
-      {isOwner && (
-        <form onSubmit={handleAddCollaborator} className="flex items-center gap-2">
-          <Input
-            type="email"
-            placeholder="new-collaborator@email.com"
-            value={newCollaboratorEmail}
-            onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-            disabled={isSubmitting}
-            className="flex-grow"
-          />
-          <Button type="submit" disabled={isSubmitting || !newCollaboratorEmail.trim()}>
-            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-            Add
-          </Button>
-        </form>
-      )}
-
-      <div className="space-y-4">
-        <h4 className="text-md font-medium">Current Members</h4>
-        {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-full" />
-          </div>
-        ) : (
-          <ul className="space-y-2">
-            {ownerProfile && (
-                 <li className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                    <span className="font-semibold">{ownerProfile?.username || ownerProfile?.email} {isOwner ? '(You)' : ''}</span>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Crown className="h-4 w-4 text-yellow-500" />
-                        <span>Owner</span>
-                    </div>
-                </li>
-            )}
-            
-            {collaborators.map(c => (
-              <li key={c.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
-                <span className="font-medium">{c.profile?.username || c.profile?.email || 'Unknown User'} {c.user_id === userId ? '(You)' : ''}</span>
-                <div className="flex items-center gap-2">
-                  {isOwner ? (
-                    <Select
-                      value={c.permission_level}
-                      onValueChange={(p: 'view' | 'comment' | 'edit') => handleUpdatePermission(c.id!, p)}
-                      disabled={c.user_id === userId}
-                    >
-                      <SelectTrigger className="w-[110px]">
-                        <SelectValue placeholder="Permission" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="view">View</SelectItem>
-                        <SelectItem value="comment">Comment</SelectItem>
-                        <SelectItem value="edit">Edit</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  ) : (
-                    <span className="text-sm text-muted-foreground capitalize bg-secondary px-2 py-1 rounded-md">{c.permission_level}</span>
-                  )}
-                  {(isOwner && c.user_id !== userId) && (
-                    <Button variant="ghost" size="icon" onClick={() => handleRemoveCollaborator(c.id!)}>
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Remove</span>
+        <Card>
+            <CardHeader>
+                <CardTitle>Members</CardTitle>
+                <CardDescription>Manage who has access to this memory zone.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                {isOwner && (
+                    <form onSubmit={handleAddCollaborator} className="flex items-center gap-2">
+                    <Input
+                        type="email"
+                        placeholder="new-collaborator@email.com"
+                        value={newCollaboratorEmail}
+                        onChange={(e) => setNewCollaboratorEmail(e.target.value)}
+                        disabled={isSubmitting}
+                        className="flex-grow"
+                    />
+                    <Button type="submit" disabled={isSubmitting || !newCollaboratorEmail.trim()}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                        Add
                     </Button>
-                  )}
+                    </form>
+                )}
+
+                <div className="space-y-4">
+                    <h4 className="text-sm font-medium text-muted-foreground">Current Members</h4>
+                    {isLoading ? (
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                    ) : (
+                    <ul className="space-y-2">
+                        {ownerProfile && (
+                            <li className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                                <span className="font-semibold">{ownerProfile?.username || ownerProfile?.email} {isOwner ? '(You)' : ''}</span>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Crown className="h-4 w-4 text-yellow-500" />
+                                    <span>Owner</span>
+                                </div>
+                            </li>
+                        )}
+                        
+                        {collaborators.map(c => (
+                        <li key={c.id} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                            <span className="font-medium">{c.profile?.username || c.profile?.email || 'Unknown User'} {c.user_id === userId ? '(You)' : ''}</span>
+                            <div className="flex items-center gap-2">
+                            {isOwner ? (
+                                <Select
+                                value={c.permission_level}
+                                onValueChange={(p: 'view' | 'comment' | 'edit') => handleUpdatePermission(c.id!, p)}
+                                disabled={c.user_id === userId}
+                                >
+                                <SelectTrigger className="w-[110px]">
+                                    <SelectValue placeholder="Permission" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="view">View</SelectItem>
+                                    <SelectItem value="comment">Comment</SelectItem>
+                                    <SelectItem value="edit">Edit</SelectItem>
+                                </SelectContent>
+                                </Select>
+                            ) : (
+                                <span className="text-sm text-muted-foreground capitalize bg-secondary px-2 py-1 rounded-md">{c.permission_level}</span>
+                            )}
+                            {(isOwner && c.user_id !== userId) && (
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveCollaborator(c.id!)}>
+                                <X className="h-4 w-4" />
+                                <span className="sr-only">Remove</span>
+                                </Button>
+                            )}
+                            </div>
+                        </li>
+                        ))}
+                    </ul>
+                    )}
+                    
+                    {!isLoading && collaborators.length === 0 && ownerProfile && (
+                    <p className="text-sm text-muted-foreground text-center py-4">You are the only member. Invite someone to collaborate!</p>
+                    )}
                 </div>
-              </li>
-            ))}
-          </ul>
+                
+                {!isOwner && collaborators.some(c => c.user_id === userId) && (
+                    <div className="pt-4 border-t">
+                    <Button variant="destructive" onClick={handleLeaveZone} className="w-full">
+                        Leave Memory Zone
+                    </Button>
+                    </div>
+                )}
+            </CardContent>
+        </Card>
+
+      {isOwner && (
+            <div className="space-y-6">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>General Settings</CardTitle>
+                        <CardDescription>Update your memory zone's details.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <form onSubmit={handleTitleChange} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="zone-title">Title</Label>
+                                <Input
+                                    id="zone-title"
+                                    value={zoneTitle}
+                                    onChange={(e) => setZoneTitle(e.target.value)}
+                                    disabled={!isOwner || isSavingTitle}
+                                />
+                            </div>
+                            <Button type="submit" disabled={isSavingTitle || !zoneTitle.trim() || zoneTitle.trim() === zone.title}>
+                                {isSavingTitle ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                Save Changes
+                            </Button>
+                        </form>
+                    </CardContent>
+                </Card>
+
+                <Card className="border-destructive">
+                    <CardHeader>
+                        <CardTitle className="text-destructive">Danger Zone</CardTitle>
+                        <CardDescription>
+                            These actions are irreversible. Please be certain.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Dialog>
+                            <DialogTrigger asChild>
+                                <Button variant="destructive">
+                                    Delete Memory Zone
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>Are you absolutely sure?</DialogTitle>
+                                    <DialogDescription>
+                                        This action cannot be undone. This will permanently delete this memory zone
+                                        and all of its content, including all associated media.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <DialogFooter>
+                                    <DialogTrigger asChild><Button variant="outline" disabled={isDeleting}>Cancel</Button></DialogTrigger>
+                                    <Button onClick={handleDeleteZone} disabled={isDeleting} variant="destructive">
+                                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                        Yes, delete it
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </CardContent>
+                </Card>
+            </div>
         )}
-        
-        {!isLoading && collaborators.length === 0 && ownerProfile && (
-          <p className="text-sm text-muted-foreground text-center py-4">You are the only member. Invite someone to collaborate!</p>
-        )}
-      </div>
-      
-      {!isOwner && collaborators.some(c => c.user_id === userId) && (
-        <div className="pt-4 border-t">
-          <Button variant="destructive" onClick={handleLeaveZone} className="w-full">
-            Leave Memory Zone
-          </Button>
-        </div>
-      )}
     </div>
   );
 } 

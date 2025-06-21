@@ -5,7 +5,7 @@ import { getMemoryZoneById, updateMemoryZone } from '@/services/memoryZoneServic
 import { MemoryZone } from '@/types/supabase';
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/Button';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Settings } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Block, BlockNoteEditor, PartialBlock, filterSuggestionItems } from '@blocknote/core';
 import { useCreateBlockNote, FormattingToolbarController, FormattingToolbar, BlockTypeSelect, BasicTextStyleButton, TextAlignButton, ColorStyleButton, NestBlockButton, UnnestBlockButton, CreateLinkButton, SuggestionMenuController, getDefaultReactSlashMenuItems, FileCaptionButton, FileReplaceButton } from "@blocknote/react";
@@ -17,6 +17,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { addAttachment, deleteAttachment, getAttachmentsForZone } from '@/services/memoryZoneMediaAttachmentService';
 import { getPublicUrl, uploadFile } from '@/services/storageService';
 import debounce from 'lodash/debounce';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { MemoryZoneSettings } from '@/components/journal/MemoryZoneSettings';
 
 // Type guard to check if a block is a file-containing block
 function isFileBlock(block: Block): block is Block & { props: { url: string } } {
@@ -118,6 +120,27 @@ function MemoryZoneDetailPage() {
   }, [zone, editor]);
 
 
+  const fetchZoneData = useCallback(async () => {
+    if (!supabase || !isLoaded || !userId) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const zoneData = await getMemoryZoneById(supabase, zoneId!);
+
+      if (!zoneData) {
+        setError('Memory zone not found or you do not have access.');
+      } else {
+        setZone(zoneData);
+      }
+    } catch (e) {
+      console.error("Error fetching zone data:", e);
+      setError(e instanceof Error ? e.message : 'An unexpected error occurred.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [zoneId, supabase, userId, isLoaded]);
+
   useEffect(() => {
     if (!supabase || !isLoaded) return;
     
@@ -127,27 +150,8 @@ function MemoryZoneDetailPage() {
         return;
     }
 
-    const fetchZoneData = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const zoneData = await getMemoryZoneById(supabase, zoneId!);
-
-        if (!zoneData) {
-          setError('Memory zone not found or you do not have access.');
-        } else {
-          setZone(zoneData);
-        }
-      } catch (e) {
-        console.error("Error fetching zone data:", e);
-        setError(e instanceof Error ? e.message : 'An unexpected error occurred.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchZoneData();
-  }, [zoneId, supabase, userId, isLoaded]);
+  }, [zoneId, supabase, userId, isLoaded, fetchZoneData]);
   
   const handleSaveContent = useCallback(async () => {
       if (!supabase || !userId || !zone || !editor || !zone.id) return;
@@ -310,7 +314,7 @@ function MemoryZoneDetailPage() {
   return (
     <div className="container mx-auto p-4 sm:p-6 lg:p-8">
       <header className="flex items-center justify-between mb-8 flex-wrap gap-4">
-        <div>
+        <div className="flex-grow">
             <Button asChild variant="ghost" size="sm" className="mb-2 -ml-4">
                 <Link to="/journal/memory-zone">
                     <ArrowLeft className="mr-2 h-4 w-4" />
@@ -323,17 +327,38 @@ function MemoryZoneDetailPage() {
                 {lastSaved && <span className="text-xs text-green-500 dark:text-green-400">Last updated: {lastSaved.toLocaleString()}</span>}
             </div>
         </div>
-        <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-            {isSaving ? (
-                <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span>Saving...</span>
-                </>
-            ) : hasUnsavedChanges ? (
-                <span>Unsaved changes</span>
-            ) : (
-                <span>All changes saved</span>
-            )}
+        <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                {isSaving ? (
+                    <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>Saving...</span>
+                    </>
+                ) : hasUnsavedChanges ? (
+                    <span>Unsaved changes</span>
+                ) : (
+                    <span>All changes saved</span>
+                )}
+            </div>
+            <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="icon">
+                    <Settings className="h-5 w-5" />
+                    <span className="sr-only">Settings</span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>{zone.title} Settings</SheetTitle>
+                    <SheetDescription>
+                      Manage members, title, and other settings for this memory zone.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <div className="py-4">
+                    <MemoryZoneSettings zone={zone} onUpdate={fetchZoneData} />
+                  </div>
+                </SheetContent>
+            </Sheet>
         </div>
       </header>
       
