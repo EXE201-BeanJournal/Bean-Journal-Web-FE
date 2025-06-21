@@ -49,6 +49,24 @@ export const createMediaAttachment = async (supabase: SupabaseClient, attachment
   }
 };
 
+export const createMediaAttachments = async (supabase: SupabaseClient, attachmentsData: Partial<MediaAttachment>[]) => {
+  if (attachmentsData.length === 0) {
+    return [];
+  }
+  try {
+    const { data } = await supabase
+      .from('media_attachments')
+      .insert(attachmentsData)
+      .select()
+      .throwOnError();
+    toast.success(`${attachmentsData.length} media attachment(s) created successfully.`);
+    return data as MediaAttachment[];
+  } catch (error) {
+    toast.error('Failed to create media attachments.');
+    throw error;
+  }
+};
+
 // Note: Supabase Storage handles uploads directly, this is for metadata.
 // For actual file upload, use supabase.storage.from('bucket-name').upload(...)
 
@@ -64,6 +82,24 @@ export const deleteMediaAttachment = async (supabase: SupabaseClient, attachment
     return true;
   } catch (error) {
     toast.error('Failed to delete media attachment.');
+    throw error;
+  }
+};
+
+export const deleteMediaAttachments = async (supabase: SupabaseClient, attachmentIds: string[]) => {
+  if (attachmentIds.length === 0) {
+    return true;
+  }
+  try {
+    await supabase
+      .from('media_attachments')
+      .delete()
+      .in('id', attachmentIds)
+      .throwOnError();
+    toast.success(`${attachmentIds.length} media attachment(s) deleted successfully.`);
+    return true;
+  } catch (error) {
+    toast.error('Failed to delete media attachments.');
     throw error;
   }
 }; 

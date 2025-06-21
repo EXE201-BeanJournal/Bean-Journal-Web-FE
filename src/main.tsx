@@ -83,7 +83,7 @@ if (!rootElement.innerHTML) {
 		<StrictMode>
 			<HelmetProvider>
 				<CustomThemeProvider>
-					<RouterProvider router={router} />
+						<RouterProvider router={router} />
 				</CustomThemeProvider>
 			</HelmetProvider>
 		</StrictMode>,

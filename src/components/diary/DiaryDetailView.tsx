@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { JournalEntry, Tag, Project } from "@/types/supabase";
+import { useState, useMemo, useEffect, useCallback, forwardRef } from "react";
+import { JournalEntry, Tag, Project, MediaAttachment } from "@/types/supabase";
 import debounce from "lodash/debounce";
 import type { TodoItem as TodoItemType } from "@/types/supabase";
 import {
@@ -9,11 +9,11 @@ import {
 } from "@/services/tagService";
 import { SupabaseClient } from "@supabase/supabase-js";
 import {
-  createMediaAttachment,
   getMediaAttachmentsByEntryId,
-  deleteMediaAttachment,
+  createMediaAttachments,
+  deleteMediaAttachments,
 } from "@/services/mediaAttachmentService";
-import { getPublicUrl, deleteFiles } from "@/services/storageService";
+import { getPublicUrl } from "@/services/storageService";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
@@ -61,13 +61,13 @@ const defaultInitialBlocks: PartialBlock[] = [
 ];
 const defaultInitialContentString = JSON.stringify(defaultInitialBlocks);
 
-const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
+const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   diary,
   onUpdateDiary,
   onDeleteDiary,
   userId,
   supabase,
-}) => {
+}, ref) => {
   const [editableTitle, setEditableTitle] = useState(diary.title || "");
   const [currentEditorContentString, setCurrentEditorContentString] = useState<
     string | undefined
@@ -375,15 +375,17 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
   const handleSave = useCallback(
     async (
       currentTitle: string,
-      currentContentString?: string,
+      _currentContentString?: string,
       tagIdsForSave?: string[],
       moodToSave?: string | undefined | null,
       projectToSaveId?: string | null | undefined
     ) => {
-      if (!diary.id || !userId || !supabase) {
-        console.error("Cannot save, diary ID or user ID is missing.");
+      if (!diary.id || !userId || !supabase || !editor) {
+        console.error("Cannot save, diary ID, user ID, or editor is missing.");
         return;
       }
+
+      const currentContentForSave = JSON.stringify(editor.document);
 
       setIsSaving(true);
       setHasUnsavedChanges(false);
@@ -405,9 +407,9 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
           await updateEntryTags(supabase, userId, diary.id, tagsToUpdate);
         }
 
-        if (currentContentString && diary.id) {
+        if (currentContentForSave && diary.id) {
           const parsedBlocks: Block<typeof schema.blockSchema>[] =
-            JSON.parse(currentContentString);
+            JSON.parse(currentContentForSave);
 
           try {
             const editorTodoBlocks = parsedBlocks.filter(
@@ -498,125 +500,59 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
             const currentEditorImageUrls = extractImageUrlsFromBN(
               parsedBlocks as unknown as Block[]
             );
-
             const existingAttachments = await getMediaAttachmentsByEntryId(
               supabase,
               diary.id
             );
-            const rawBucketBasePublicUrl = getPublicUrl(
-              supabase,
-              BUCKET_NAME,
-              ""
+            const existingAttachmentUrls = existingAttachments.map(
+              (att) => att.file_url_cached
             );
-            const bucketBasePublicUrl = rawBucketBasePublicUrl
-              ? rawBucketBasePublicUrl.replace(/\/$/, "")
-              : undefined;
-
-            if (!bucketBasePublicUrl) {
-              console.error(
-                "Could not determine bucket base public URL. Skipping media sync."
-              );
-            } else {
-              for (const attachment of existingAttachments) {
-                if (
-                  !currentEditorImageUrls.includes(attachment.file_url_cached)
-                ) {
-                  try {
-                    const relativePathToDelete = attachment.file_path;
-
-                    console.log(
-                      `Attempting to delete attachment. DB ID: ${attachment.id}, Storage Path: ${relativePathToDelete}`
-                    );
-
-                    if (relativePathToDelete) {
-                      const success = await deleteFiles(supabase, BUCKET_NAME, [
-                        relativePathToDelete,
-                      ]);
-                      if (success) {
-                        console.log(
-                          `Successfully deleted file from storage: ${relativePathToDelete}`
-                        );
-                      } else {
-                        console.warn(
-                          `Storage deletion call returned false for path: ${relativePathToDelete}. The file may have already been deleted.`
-                        );
-                      }
-                    }
-                    await deleteMediaAttachment(supabase, attachment.id!);
-                    console.log(
-                      `Deleted attachment record from database for path: ${attachment.file_url_cached}`
-                    );
-                  } catch (deleteError) {
-                    console.error(
-                      `Error deleting attachment or file for ${attachment.file_url_cached}:`,
-                      deleteError
-                    );
-                  }
-                }
+    
+            // Handle Deletions
+            const attachmentsToDelete = existingAttachments.filter(
+              (att) => !currentEditorImageUrls.includes(att.file_url_cached)
+            );
+    
+            if (attachmentsToDelete.length > 0) {
+              const attachmentIdsToDelete = attachmentsToDelete
+                .map((att) => att.id)
+                .filter((id): id is string => !!id);
+    
+              // The trigger on media_attachments should handle deleting from storage.
+              if (attachmentIdsToDelete.length > 0) {
+                await deleteMediaAttachments(supabase, attachmentIdsToDelete);
               }
-
-              const refreshedExistingAttachments =
-                await getMediaAttachmentsByEntryId(supabase, diary.id);
-              const refreshedExistingAttachmentUrls =
-                refreshedExistingAttachments.map((att) => att.file_url_cached);
-
-              for (const imageUrl of currentEditorImageUrls) {
-                if (!refreshedExistingAttachmentUrls.includes(imageUrl)) {
+            }
+    
+            // Handle Creations
+            const newImageUrls = currentEditorImageUrls.filter(
+              (url) => !existingAttachmentUrls.includes(url)
+            );
+    
+            if (newImageUrls.length > 0) {
+              const rawBucketBasePublicUrl = getPublicUrl(supabase, BUCKET_NAME, "");
+              const bucketBasePublicUrl = rawBucketBasePublicUrl
+                ? rawBucketBasePublicUrl.replace(/\/$/, "")
+                : "";
+      
+              if (bucketBasePublicUrl) {
+                const newAttachmentsData: Partial<MediaAttachment>[] = [];
+                for (const imageUrl of newImageUrls) {
                   if (imageUrl.startsWith(bucketBasePublicUrl + "/")) {
                     const relativeFilePath = imageUrl.substring(
                       bucketBasePublicUrl.length + 1
                     );
-                    let fileSize = -1;
                     const fileNameOriginal = relativeFilePath.substring(
                       relativeFilePath.lastIndexOf("/") + 1
                     );
-
-                    try {
-                      const response = await fetch(imageUrl, {
-                        method: "HEAD",
-                        cache: "no-store",
-                      });
-                      if (response.ok) {
-                        const contentLength =
-                          response.headers.get("Content-Length");
-                        if (contentLength)
-                          fileSize = parseInt(contentLength, 10);
-                        else
-                          console.warn(
-                            `Content-Length header missing for ${imageUrl}`
-                          );
-                      } else {
-                        console.warn(
-                          `HEAD request failed for ${imageUrl}: ${response.status}`
-                        );
-                      }
-                    } catch (headError) {
-                      console.warn(
-                        `Failed to fetch image size for ${imageUrl}:`,
-                        headError
-                      );
-                    }
-
+                    const extension = fileNameOriginal.split(".").pop()?.toLowerCase() || "";
                     let mimeType = "application/octet-stream";
-                    const extension = fileNameOriginal
-                      .split(".")
-                      .pop()
-                      ?.toLowerCase();
-                    if (extension) {
-                      if (extension === "jpg" || extension === "jpeg")
-                        mimeType = "image/jpeg";
-                      else if (extension === "png") mimeType = "image/png";
-                      else if (extension === "gif") mimeType = "image/gif";
-                      else if (extension === "webp") mimeType = "image/webp";
-                    }
-
-                    if (fileSize === -1) {
-                      console.warn(
-                        `Could not determine file size for ${imageUrl}. Storing as -1.`
-                      );
-                    }
-
-                    await createMediaAttachment(supabase, {
+                    if (["jpg", "jpeg"].includes(extension)) mimeType = "image/jpeg";
+                    else if (extension === "png") mimeType = "image/png";
+                    else if (extension === "gif") mimeType = "image/gif";
+                    else if (extension === "webp") mimeType = "image/webp";
+      
+                    newAttachmentsData.push({
                       entry_id: diary.id,
                       user_id: userId,
                       file_path: relativeFilePath,
@@ -624,14 +560,13 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
                       file_name_original: fileNameOriginal,
                       file_type: "image",
                       mime_type: mimeType,
-                      file_size_bytes: fileSize,
+                      file_size_bytes: -1, // Note: Size detection removed for simplicity
                     });
-                    console.log(`Created attachment for URL: ${imageUrl}`);
-                  } else {
-                    console.log(
-                      `Skipping non-Supabase storage URL: ${imageUrl}`
-                    );
                   }
+                }
+      
+                if (newAttachmentsData.length > 0) {
+                  await createMediaAttachments(supabase, newAttachmentsData);
                 }
               }
             }
@@ -645,7 +580,7 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
 
         const coreUpdates: Partial<JournalEntry> = {
           title: currentTitle,
-          content: currentContentString || defaultInitialContentString,
+          content: currentContentForSave || defaultInitialContentString,
           is_draft: false,
           updated_at: new Date().toISOString(),
           manual_mood_label: moodToSave === null ? undefined : moodToSave,
@@ -655,8 +590,8 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
 
         setLastSaved(new Date());
         setInitialLoadedTagIds([...tagsToUpdate]);
-        if (currentContentString !== undefined) {
-          setInitialDiaryContentString(currentContentString);
+        if (currentContentForSave !== undefined) {
+          setInitialDiaryContentString(currentContentForSave);
         }
         setInitialMoodLabel(moodToSave);
         setInitialProjectId(projectToSaveId);
@@ -677,6 +612,7 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
       initialLoadedTagIds,
       selectedTagIds,
       BUCKET_NAME,
+      editor,
     ]
   );
 
@@ -892,7 +828,7 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg flex flex-col">
+    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col">
       <DiaryHeader
         diary={diary}
         editableTitle={editableTitle}
@@ -947,6 +883,8 @@ const DiaryDetailView: React.FC<DiaryDetailViewProps> = ({
       />
     </div>
   );
-};
+});
+
+DiaryDetailView.displayName = "DiaryDetailView";
 
 export default DiaryDetailView;

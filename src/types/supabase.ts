@@ -266,20 +266,31 @@ export interface FacebookShare {
   share_description?: string; // TEXT
 }
 
+export type CollaboratorProfile = Pick<Profile, 'id' | 'username' | 'email'>;
+
 export interface MemoryZone {
   id?: string; // UUID
   owner_id: string; // TEXT
   title: string; // TEXT
+  content?: string; // TEXT
+  last_content_editor_id?: string; // TEXT
   created_at?: string; // TIMESTAMPTZ
   updated_at?: string; // TIMESTAMPTZ
 }
 
-export interface MemoryZoneContent {
+export interface MemoryZoneMediaAttachment {
+  id?: string; // UUID
   memory_zone_id: string; // UUID
-  doc_state_storage_path?: string; // TEXT
-  doc_state_version?: string; // TEXT
-  last_updated_by?: string; // TEXT
-  updated_at?: string; // TIMESTAMPTZ
+  uploader_id: string; // TEXT
+  file_path: string; // TEXT
+  file_name_original?: string; // TEXT
+  file_type?: string; // TEXT
+  mime_type?: string; // TEXT
+  file_size_bytes?: number; // BIGINT
+  file_url_cached?: string; // TEXT
+  file_url_cached_expires_at?: string; // TIMESTAMPTZ
+  description?: string; // TEXT
+  created_at?: string; // TIMESTAMPTZ
 }
 
 export interface MemoryZoneCollaborator {

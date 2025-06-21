@@ -1,4 +1,5 @@
 import { SupabaseClient } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 import { MemoryZone } from '../types/supabase';
 
 const TABLE_NAME = 'memory_zones';
@@ -6,13 +7,16 @@ const TABLE_NAME = 'memory_zones';
 export const createMemoryZone = async (
   supabase: SupabaseClient,
   zone: Omit<MemoryZone, 'id' | 'created_at' | 'updated_at'>
-): Promise<MemoryZone> => {
+): Promise<MemoryZone | null> => {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .insert(zone)
     .select()
     .single();
-  if (error) throw new Error(error.message);
+  if (error) {
+    toast.error("Failed to create memory zone", { description: error.message });
+    return null;
+  }
   return data;
 };
 
@@ -23,21 +27,23 @@ export const getMemoryZoneById = async (supabase: SupabaseClient, id: string): P
     .eq('id', id)
     .single();
   if (error) {
-    console.error('Error fetching memory zone:', error);
+    toast.error("Failed to fetch memory zone", { description: error.message });
     return null;
   }
   return data;
 };
 
-export const getMemoryZonesByOwner = async (supabase: SupabaseClient, owner_id: string): Promise<MemoryZone[]> => {
+export const getAccessibleMemoryZones = async (supabase: SupabaseClient): Promise<MemoryZone[]> => {
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .select('*')
-    .eq('owner_id', owner_id);
+    .order('created_at', { ascending: false });
+
   if (error) {
-    console.error('Error fetching memory zones by owner:', error);
+    toast.error("Failed to fetch memory zones", { description: error.message });
     return [];
   }
+
   return data || [];
 };
 
@@ -45,18 +51,24 @@ export const updateMemoryZone = async (
   supabase: SupabaseClient,
   id: string,
   updates: Partial<MemoryZone>
-): Promise<MemoryZone> => {
-  const { data, error } = await supabase
+): Promise<boolean> => {
+  const { error } = await supabase
     .from(TABLE_NAME)
     .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw new Error(error.message);
-  return data;
+    .eq('id', id);
+
+  if (error) {
+    toast.error("Error saving content", { description: error.message });
+    return false;
+  }
+  return true;
 };
 
-export const deleteMemoryZone = async (supabase: SupabaseClient, id: string): Promise<void> => {
+export const deleteMemoryZone = async (supabase: SupabaseClient, id: string): Promise<boolean> => {
   const { error } = await supabase.from(TABLE_NAME).delete().eq('id', id);
-  if (error) throw new Error(error.message);
+  if (error) {
+    toast.error("Failed to delete memory zone", { description: error.message });
+    return false;
+  }
+  return true;
 }; 
