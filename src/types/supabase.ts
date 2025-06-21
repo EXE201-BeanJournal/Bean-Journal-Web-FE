@@ -267,6 +267,18 @@ export interface FacebookShare {
   share_description?: string; // TEXT
 }
 
+export interface LinkedInShare {
+  id?: string; // UUID
+  user_id: string; // TEXT
+  journal_entry_id: string; // UUID
+  linkedin_share_urn?: string; // TEXT
+  preview_image_path: string; // TEXT
+  preview_image_url_cached: string; // TEXT
+  shared_at?: string; // TIMESTAMPTZ
+  share_content_url?: string; // TEXT
+  share_text_snippet?: string; // TEXT
+}
+
 export type CollaboratorProfile = Pick<Profile, 'id' | 'username' | 'email'>;
 
 export interface MemoryZone {

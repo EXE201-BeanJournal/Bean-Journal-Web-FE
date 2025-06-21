@@ -19,4 +19,7 @@ export * from './todoItemService';
 export * from './userIntegrationService';
 export * from './memoryZoneService';
 export * from './memoryZoneCollaboratorService';
-export * from './memoryZoneMediaAttachmentService'; 
+export * from './memoryZoneMediaAttachmentService';
+export * from './facebookShareService';
+export * from './imageGenerationService';
+export * from './linkedInShareService';
