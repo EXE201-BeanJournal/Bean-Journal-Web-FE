@@ -50,9 +50,9 @@ export function StreakModal({
           const dayMapping: ReadonlyArray<"Su" | "M" | "Tu" | "W" | "Th" | "F" | "Sa"> = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
           const daysWithEntriesInWindow = new Set<"M" | "Tu" | "W" | "Th" | "F" | "Sa" | "Su">();
           const now = new Date();
-          const startOfToday = new Date(now);
-          startOfToday.setHours(0,0,0,0);
-          
+          const today = new Date(now);
+          today.setHours(0, 0, 0, 0);
+
           const allEntryYYYYMMDD = new Set(
             (journalEntries || []).map(entry => {
               const entryDate = new Date(entry.created_at?.toString() || "");
@@ -60,9 +60,19 @@ export function StreakModal({
             })
           );
 
+          // Find the start of the current week (Monday)
+          const dayOfWeek = today.getDay(); // Sunday: 0, Monday: 1, etc.
+          const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+          const startOfWeek = new Date(today);
+          startOfWeek.setDate(today.getDate() - daysSinceMonday);
+
+          // Check for entries within the current week, from Monday up to today
           for (let i = 0; i < 7; i++) {
-            const dateToCheck = new Date(startOfToday);
-            dateToCheck.setDate(startOfToday.getDate() - i);
+            const dateToCheck = new Date(startOfWeek);
+            dateToCheck.setDate(startOfWeek.getDate() + i);
+
+            if (dateToCheck > now) break; // Stop if we are checking a future date
+
             const localDateToCheckYYYYMMDD = getLocalYYYYMMDD(dateToCheck);
             if (allEntryYYYYMMDD.has(localDateToCheckYYYYMMDD)) {
               daysWithEntriesInWindow.add(dayMapping[dateToCheck.getDay()]);
