@@ -144,7 +144,7 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
   };
 
   return (
-    <>
+    <div className="overflow-x-hidden min-w-0">
       {loadingTags && (
         <p className="text-center text-gray-500 py-4">Loading tags...</p>
       )}
@@ -184,7 +184,7 @@ const TagSection: React.FC<TagSectionProps> = ({ supabase, currentUserId }) => {
         onConfirm={handleConfirmDelete}
         itemName={tagToDelete?.name}
       />
-    </>
+    </div>
   );
 };
 

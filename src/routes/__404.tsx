@@ -28,26 +28,13 @@ export function NotFoundPageContent() {
     <div className="relative min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-gray-50 to-green-200 dark:from-gray-800 dark:to-green-700/50 p-6 font-publica-sans antialiased overflow-hidden">
       {/* Animated Background Leaves */}
       {leafAnimateProps.map((prop, index) => (
-        <motion.div
+        <div
           key={index}
           className={`absolute ${getLeafColorClass(prop.variant)} pointer-events-none`}
           style={{ top: prop.top, left: prop.left }}
-          initial={{ opacity: 0, y: prop.y > 0 ? -30 : 30, x: prop.x > 0 ? -10: 10 }}
-          animate={{
-            opacity: [0, 0.8, 0.8, 0], // Adjusted opacity keyframes for better visibility during animation
-            y: [prop.y > 0 ? -20 : 20, prop.y, prop.y > 0 ? 20 : -20],
-            x: [0, prop.x, 0],
-            rotate: [0, prop.rotate, 0],
-          }}
-          transition={{
-            duration: prop.duration,
-            repeat: Infinity,
-            delay: prop.delay,
-            ease: "linear",
-          }}
         >
           <Leaf className={prop.size} />
-        </motion.div>
+        </div>
       ))}
 
       {/* Main Content Card */}
@@ -68,7 +55,7 @@ export function NotFoundPageContent() {
         <motion.h1
           initial={{ opacity: 0.8 }}
           animate={{ opacity: 1 }}
-          transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut", direction: "alternate" }}
+          transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
           className="text-7xl sm:text-8xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#85a673] to-[#99BC85] dark:from-[#a8d194] dark:to-[#c6e6b8] tracking-tight"
         >
           404

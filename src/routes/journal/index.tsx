@@ -20,9 +20,9 @@ import { useAuth } from "@clerk/clerk-react"; // Kept for userId
 import { useSupabase } from "../../contexts/SupabaseContext"; // Import useSupabase
 import JournalCalendarSection from "../../components/journal/JournalCalendarSection"; // Import JournalCalendarSection
 import StreakManagement from "../../components/journal/StreakManagement"; // Import StreakManagement
-import MobileBlocker from "../../components/journal/MobileBlocker";
-import LandscapeBlocker from "../../components/journal/LandscapeBlocker";
-import { useMediaQuery } from 'react-responsive';
+// import MobileBlocker from "../../components/journal/MobileBlocker";
+// import LandscapeBlocker from "../../components/journal/LandscapeBlocker";
+// import { useMediaQuery } from 'react-responsive';
 import { HeaderCardSkeleton } from "@/components/journal/HeaderCardSkeleton";
 import { TagSectionSkeleton } from "@/components/journal/TagSectionSkeleton";
 import { JournalCalendarSectionSkeleton } from "@/components/journal/JournalCalendarSectionSkeleton";
@@ -33,8 +33,8 @@ export const Route = createFileRoute("/journal/")({
 });
 
 function Homepage() {
-  const isMobile = useMediaQuery({ query: '(max-width: 768px), (max-height: 540px)' });
-  const isLandscape = useMediaQuery({ query: '(orientation: landscape)' });
+//   const isMobile = useMediaQuery({ query: '(max-width: 768px), (max-height: 540px)' });
+//   const isLandscape = useMediaQuery({ query: '(orientation: landscape)' });
   //const [isModalOpen, setModalOpen] = useState(false);
   const { userId } = useAuth();
 
@@ -332,9 +332,9 @@ function Homepage() {
   //   setShowDebugButton((prev) => !prev);
   // };
 
-  if (isMobile) {
-    return isLandscape ? <LandscapeBlocker /> : <MobileBlocker />;
-  }
+//   if (isMobile) {
+//     return isLandscape ? <LandscapeBlocker /> : <MobileBlocker />;
+//   }
 
   if (isLoading) {
     return (
