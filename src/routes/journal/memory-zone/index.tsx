@@ -18,6 +18,49 @@ export const Route = createFileRoute('/journal/memory-zone/')({
   component: MemoryZoneListPage,
 });
 
+type SlateNode = {
+  text?: string;
+  children?: SlateNode[];
+  [key: string]: unknown;
+};
+
+const findFirstTextInJson = (data: SlateNode | SlateNode[]): string | null => {
+  if (!data) return null;
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const result = findFirstTextInJson(item);
+      if (result) return result;
+    }
+  } else {
+    if (typeof data.text === 'string' && data.text.trim()) {
+      return data.text.trim();
+    }
+
+    if (data.children) {
+      return findFirstTextInJson(data.children);
+    }
+  }
+
+  return null;
+};
+
+const getContentPreview = (content: string | null | undefined): string => {
+  if (!content || !content.trim() || content.trim() === '""') {
+    return 'No content yet.';
+  }
+  try {
+    const parsedContent = JSON.parse(content) as SlateNode | SlateNode[];
+    
+    const firstText = findFirstTextInJson(parsedContent);
+    
+    return firstText || 'No text content found.';
+
+  } catch (e) {
+    return content.replace(/^"|"$/g, '');
+  }
+};
+
 function MemoryZoneListPage() {
   const supabase = useSupabase();
   const { userId } = useAuth();
@@ -150,16 +193,18 @@ function MemoryZoneListPage() {
 
       {!isLoading && !isError && (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-          {memoryZones.map((zone) => (
+          {memoryZones.map((zone) => {
+            const contentPreview = getContentPreview(zone.content);
+            return (
             <Card key={zone.id} className="group flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden">
               <Link to="/journal/memory-zone/$zoneId" params={{ zoneId: zone.id! }} className="flex flex-col h-full flex-grow">
                 <CardHeader className="flex-row items-start justify-between space-y-0 pb-2">
                   <div className="flex-grow">
                     <CardTitle className="text-lg font-bold truncate">{zone.title}</CardTitle>
-                    {zone.content ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 h-10">{zone.content}</p>
+                    {contentPreview !== 'No content yet.' && contentPreview !== 'No text content found.' ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 h-10">{contentPreview}</p>
                     ) : (
-                      <p className='text-sm text-gray-400 dark:text-gray-500 mt-2 italic h-10'>No content yet.</p>
+                      <p className='text-sm text-gray-400 dark:text-gray-500 mt-2 italic h-10'>{contentPreview}</p>
                     )}
                   </div>
                   
@@ -191,7 +236,7 @@ function MemoryZoneListPage() {
                 </CardContent>
               </Link>
             </Card>
-          ))}
+          )})}
         </div>
       )}
     </div>

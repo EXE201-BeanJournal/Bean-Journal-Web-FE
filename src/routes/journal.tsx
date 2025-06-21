@@ -18,9 +18,10 @@ import { ModeToggle } from "@/components/shared/ModeToggle";
 import { useEffect, useState } from 'react';
 import '../journal-theme.css'; 
 import { getProjectById } from "@/services/projectService";
+import { getMemoryZoneById } from "@/services/memoryZoneService";
 import { useAuth } from "@clerk/clerk-react";
 import { useSupabase } from "@/contexts/SupabaseContext";
-import type { Project } from "@/types/supabase";
+import type { Project, MemoryZone } from "@/types/supabase";
 import StreakManagement from "@/components/journal/StreakManagement";
 import { Button } from "@/components/ui/Button";
 
@@ -38,6 +39,8 @@ function JournalLayout() {
   const routerState = useRouterState();
   const [projectName, setProjectName] = useState<string | null>(null);
   const [isLoadingProjectName, setIsLoadingProjectName] = useState(false);
+  const [memoryZoneName, setMemoryZoneName] = useState<string | null>(null);
+  const [isLoadingMemoryZoneName, setIsLoadingMemoryZoneName] = useState(false);
 
   // This local state is no longer needed as StreakManagement handles its own data
   // const [userProfileData, setUserProfileData] = useState<Profile | null>(null);
@@ -61,9 +64,13 @@ function JournalLayout() {
   // those params would typically be accessed within the component for that specific child route.
   // However, routerState.location.pathname can give us the full path.
   let projectId: string | null = null;
+  let memoryZoneId: string | null = null;
   const pathParts = routerState.location.pathname.split('/');
   if (pathParts.length >= 4 && pathParts[1] === 'journal' && pathParts[2] === 'project' && pathParts[3]) {
     projectId = pathParts[3];
+  }
+  if (pathParts.length >= 4 && pathParts[1] === 'journal' && pathParts[2] === 'memory-zone' && pathParts[3]) {
+    memoryZoneId = pathParts[3];
   }
 
   useEffect(() => {
@@ -101,6 +108,29 @@ function JournalLayout() {
     }
   }, [projectId, supabase]);
 
+  useEffect(() => {
+    if (memoryZoneId && supabase) {
+      setIsLoadingMemoryZoneName(true);
+      getMemoryZoneById(supabase, memoryZoneId)
+        .then((zone: MemoryZone | null) => {
+          if (zone) {
+            setMemoryZoneName(zone.title);
+          } else {
+            setMemoryZoneName(null);
+          }
+        })
+        .catch(error => {
+          console.error("Error fetching memory zone name for breadcrumb:", error);
+          setMemoryZoneName(null);
+        })
+        .finally(() => {
+          setIsLoadingMemoryZoneName(false);
+        });
+    } else {
+      setMemoryZoneName(null);
+    }
+  }, [memoryZoneId, supabase]);
+
   const getBreadcrumbPath = () => {
     const path = routerState.location.pathname;
     if (path.startsWith("/journal/project/") && projectId) {
@@ -118,6 +148,27 @@ function JournalLayout() {
               {isLoadingProjectName ? "Loading..." : projectName || "Project Details"}
             </BreadcrumbPage>
           </BreadcrumbItem>
+        </>
+      );
+    } else if (path.startsWith("/journal/memory-zone")) {
+      const isDetailsPage = path.split('/').filter(p => p).length > 2;
+      return (
+        <>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild className="text-[#2f2569] dark:text-white interactive">
+              <Link to="/journal/memory-zone">Memory Zones</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {isDetailsPage && (
+            <>
+              <BreadcrumbSeparator className="hidden md:block text-[#2f2569]/50 dark:text-white/50" />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="text-[#2f2569] dark:text-white">
+                  {isLoadingMemoryZoneName ? "Loading..." : memoryZoneName || "Zone Details"}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
         </>
       );
     } else if (path === "/journal/diary") {
