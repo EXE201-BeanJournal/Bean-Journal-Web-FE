@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, forwardRef } from "react";
+import { useState, useEffect, useCallback, forwardRef, useRef } from "react";
 import { JournalEntry, Tag, Project, MediaAttachment } from "@/types/supabase";
-import debounce from "lodash/debounce";
 import type { TodoItem as TodoItemType } from "@/types/supabase";
 import {
   getTagsByUserId,
@@ -48,6 +47,9 @@ import DiaryModals from "./detail/DiaryModals";
 import { generateJournalImage } from "@/services/imageGenerationService";
 import { createFacebookShare } from "@/services/facebookShareService";
 import { createLinkedInShare } from "@/services/linkedInShareService";
+import { useDebouncedCallback } from "use-debounce";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -55,6 +57,7 @@ interface DiaryDetailViewProps {
   onDeleteDiary: (diaryIdToDelete: string) => Promise<void>;
   userId: string;
   supabase: SupabaseClient;
+  hasUnlimitedAccess: boolean;
 }
 
 const defaultInitialBlocks: PartialBlock[] = [
@@ -68,6 +71,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   onDeleteDiary,
   userId,
   supabase,
+  hasUnlimitedAccess,
 }, ref) => {
   const [editableTitle, setEditableTitle] = useState(diary.title || "");
   const [currentEditorContentString, setCurrentEditorContentString] = useState<
@@ -101,6 +105,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
+  const [imageCount, setImageCount] = useState(0);
+
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [initialLoadedTagIds, setInitialLoadedTagIds] = useState<string[]>([]);
@@ -130,55 +136,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     return new File([blob], fileName, { type: mimeString });
   };
 
-  const handleFileUploadCallback = useCallback(
-    async (file: File): Promise<string> => {
-      if (!supabase || !userId || !diary || !diary.id) {
-        console.error(
-          "Supabase client, userId, or diaryId not available for file upload."
-        );
-        throw new Error(
-          "Upload context not ready. Ensure the diary entry is loaded."
-        );
-      }
-
-      const fileExtension = file.name.split(".").pop();
-      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
-
-      const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) {
-        console.error("Error uploading file to Supabase Storage:", error);
-        throw new Error(`Storage upload failed: ${error.message}`);
-      }
-
-      if (!data || !data.path) {
-        console.error(
-          "Upload successful but path is missing in response data."
-        );
-        throw new Error("Storage upload failed: path missing in response.");
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(data.path);
-
-      if (!publicUrlData?.publicUrl) {
-        console.error("Error getting public URL for uploaded file:", data.path);
-        throw new Error(
-          "Failed to get public URL. File uploaded but cannot be displayed."
-        );
-      }
-      return publicUrlData.publicUrl;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [supabase, userId, diary?.id, BUCKET_NAME]
-  );
+  const handleFileUploadCallbackRef = useRef<((file: File) => Promise<string>) | null>(null);
 
   const client = createBlockNoteAIClient({
     apiKey: import.meta.env.BLOCKNOTE_AI_SERVER_API_KEY,
@@ -268,8 +226,85 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
     ],
-    uploadFile: handleFileUploadCallback,
+    uploadFile: (file) => {
+      if (handleFileUploadCallbackRef.current) {
+        return handleFileUploadCallbackRef.current(file);
+      }
+      return Promise.reject("File upload handler not ready.");
+    },
   });
+
+  const handleFileUploadCallback = useCallback(
+    async (file: File): Promise<string> => {
+      if (!supabase || !userId || !diary || !diary.id || !editor) {
+        console.error(
+          "Supabase client, userId, or diaryId not available for file upload."
+        );
+        throw new Error(
+          "Upload context not ready. Ensure the diary entry is loaded."
+        );
+      }
+
+      const currentContent = editor.document;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(currentContent as any);
+
+      if (!hasUnlimitedAccess && imageUrls.length > 3) {
+        const errorMessage = "Free users are limited to 3 media attachments per diary. Please upgrade for unlimited attachments.";
+        throw new Error(errorMessage);
+      }
+
+      const fileExtension = file.name.split(".").pop();
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
+
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Error uploading file to Supabase Storage:", error);
+        throw new Error(`Storage upload failed: ${error.message}`);
+      }
+
+      if (!data || !data.path) {
+        console.error(
+          "Upload successful but path is missing in response data."
+        );
+        throw new Error("Storage upload failed: path missing in response.");
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(data.path);
+
+      if (!publicUrlData?.publicUrl) {
+        console.error("Error getting public URL for uploaded file:", data.path);
+        throw new Error(
+          "Failed to get public URL. File uploaded but cannot be displayed."
+        );
+      }
+      return publicUrlData.publicUrl;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [supabase, userId, diary.id, hasUnlimitedAccess, editor, BUCKET_NAME]
+  );
+  
+  useEffect(() => {
+    handleFileUploadCallbackRef.current = handleFileUploadCallback;
+  }, [handleFileUploadCallback]);
+
+  useEffect(() => {
+    if (editor?.document) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(editor.document as any);
+      setImageCount(imageUrls.length);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEditorContentString, editor]);
 
   useEffect(() => {
     const fetchTagsAndProjects = async () => {
@@ -361,6 +396,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     setCurrentVideoUrl(null);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractImageUrlsFromBN = (blocks: Block[]): string[] => {
     let urls: string[] = [];
     for (const block of blocks) {
@@ -368,7 +404,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         urls.push(block.props.url);
       }
       if (block.children && Array.isArray(block.children)) {
-        urls = urls.concat(extractImageUrlsFromBN(block.children as Block[]));
+        urls = urls.concat(extractImageUrlsFromBN(block.children));
       }
     }
     return urls;
@@ -499,8 +535,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           }
 
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const currentEditorImageUrls = extractImageUrlsFromBN(
-              parsedBlocks as unknown as Block[]
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              parsedBlocks as any
             );
             const existingAttachments = await getMediaAttachmentsByEntryId(
               supabase,
@@ -618,9 +656,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     ]
   );
 
-  const debouncedSave = useMemo(
-    () =>
-      debounce(
+  const debouncedSave = useDebouncedCallback(
         (
           newTitle: string,
           newContentString?: string,
@@ -637,9 +673,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           );
         },
         2000
-      ),
-    [handleSave]
-  );
+      );
 
   useEffect(() => {
     setEditableTitle(diary.title || "");
@@ -694,6 +728,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     return () => {
       debouncedSave.cancel();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editableTitle,
     currentEditorContentString,
@@ -758,6 +793,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       setIsSharing(false);
     }
   };
+
+  const canAddAttachments = hasUnlimitedAccess || imageCount < 3;
 
   const handleShareConfirmOk = async () => {
     if (!diary.id || !userId || !supabase || !sharePreviewImageUri || !sharePlatform) {
@@ -873,15 +910,34 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         isSharing={isSharing}
       />
 
-      {shareError && (
-        <div
-          className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mx-4 my-2"
-          role="alert"
-        >
-          <p className="font-bold">Sharing Error</p>
-          <p>{shareError}</p>
-        </div>
-      )}
+      <div className="mx-4 my-2 flex justify-between items-center">
+        {shareError && (
+          <div
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
+            role="alert"
+          >
+            <p className="font-bold">Sharing Error</p>
+            <p>{shareError}</p>
+          </div>
+        )}
+
+        {!canAddAttachments && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center text-yellow-600">
+                  <Info className="h-5 w-5 mr-2" />
+                  <span className="font-semibold">Attachment limit reached</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Free users can only add up to 3 attachments.</p>
+                <p>Please upgrade for unlimited attachments.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       <DiaryEditor
         editor={editor}
