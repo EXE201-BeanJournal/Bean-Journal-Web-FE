@@ -25,3 +25,5 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+repomix-output.txt
+repomix.config.json
