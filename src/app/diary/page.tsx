@@ -1,29 +1,32 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import DiaryCard from '@/components/diary/DiaryCard';
-// import DiaryCreateForm from '@/components/diary/DiaryCreateForm'; // Commented out as DiaryDetailView will be editor
-import DiaryDetailView from '@/components/diary/DiaryDetailView';
-import { JournalEntry, Tag, Project } from '@/types/supabase';
-// import { createClerkSupabaseClient } from "@/utils/supabaseClient"; // No longer needed
-import { useAuth, useUser } from "@clerk/clerk-react"; // Kept for userId, getToken might be removed if not used elsewhere
-import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
-import { createJournalEntry, getJournalEntriesByUserId, updateJournalEntry, deleteJournalEntry } from '@/services/journalEntryService'; // Added journal entry services and updateJournalEntry
-import { getTagsByUserId, getEntryTagsByEntryId } from '@/services/tagService'; // Added tag service and getEntryTagsByEntryId
-import { getProjectsByUserId } from '@/services/projectService'; // ADDED: Import project service
-// import { useRouter, useSearchParams } from 'next/navigation'; // REMOVE Next.js router hooks
-import { useNavigate, useSearch, useRouterState } from '@tanstack/react-router'; // Import TanStack Router hooks
-import { ChevronLeft, ChevronRight } from 'lucide-react'; // Added Chevron icons
-import { createGroq } from "@ai-sdk/groq";
-import { Block } from '@blocknote/core';
-import { generateText } from 'ai';
-import { DiaryCardSkeleton } from '@/components/diary/DiaryCardSkeleton';
-import { DiaryDetailViewSkeleton } from '@/components/diary/DiaryDetailViewSkeleton';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { useSupabase } from "@/contexts/SupabaseContext";
+import {
+  createJournalEntry,
+  getJournalEntriesByUserId,
+  updateJournalEntry,
+  deleteJournalEntry,
+} from "@/services/journalEntryService";
+import type { JournalEntry, Tag, Project } from "@/types/supabase";
+import DiaryCard from "@/components/diary/DiaryCard";
+import { DiaryCardSkeleton } from "@/components/diary/DiaryCardSkeleton";
+import DiaryDetailView from "@/components/diary/DiaryDetailView";
+import { DiaryDetailViewSkeleton } from "@/components/diary/DiaryDetailViewSkeleton";
+import { getTagsByUserId, getEntryTagsByEntryId } from "@/services/tagService";
+import { getProjectsByUserId } from "@/services/projectService";
+import {
+  useNavigate,
+  useRouterState,
+  useSearch,
+} from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-// ADDED: Imports for Realtime components
-// import { RealtimeAvatarStack } from '@/components/realtime-avatar-stack'; 
-// import { RealtimeCursors } from '@/components/realtime-cursors';
+interface JournalEntryWithTags extends JournalEntry {
+  tag_ids?: string[];
+}
 
 // Define a type for your search params. 
 // This should align with your TanStack Router configuration for this route.
@@ -52,11 +55,6 @@ const getContrastColor = (hexcolor?: string): string => {
   const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
   return (yiq >= 128) ? '#000000' : '#FFFFFF';
 };
-
-// Local type extension for filtering purposes
-interface JournalEntryWithTags extends JournalEntry {
-  tag_ids?: string[];
-}
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // Added for new calendar
 
@@ -106,8 +104,6 @@ const DiaryPage = () => {
   const [allUserProjects, setAllUserProjects] = useState<Project[]>([]); // ADDED: State for user projects
   const [activeFilterProjectId, setActiveFilterProjectId] = useState<string | null>(null); // ADDED: State for active project filter
 
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isAiSummaryLoading, setIsAiSummaryLoading] = useState(false);
   const [canCreateNewDiary, setCanCreateNewDiary] = useState(true);
 
   // const router = useRouter(); // REMOVE Next.js useRouter
@@ -261,11 +257,11 @@ const DiaryPage = () => {
           ]);
 
           if (fetchedDiaries) {
-            const diariesWithTagsPromises = fetchedDiaries.map(async (diary) => {
+            const diariesWithTagsPromises = fetchedDiaries.map(async (diary: JournalEntry) => {
               if (!diary.id) return { ...diary, tag_ids: [] };
               try {
                 const entryTags = await getEntryTagsByEntryId(supabase, diary.id);
-                const tagIds = entryTags.map(et => et.tag_id);
+                const tagIds = entryTags.map((et: {tag_id: string}) => et.tag_id);
                 return { ...diary, tag_ids: tagIds };
               } catch (tagError) {
                 console.error(`Error fetching tags for diary ${diary.id}:`, tagError);
@@ -275,7 +271,7 @@ const DiaryPage = () => {
 
             const diariesWithTags = await Promise.all(diariesWithTagsPromises);
             const sortedDiaries = diariesWithTags.sort(sortDiariesByEntryTimestamp);
-            setDiaries(sortedDiaries);
+            setDiaries(sortedDiaries as JournalEntryWithTags[]);
 
             const isMobile = window.matchMedia("(max-width: 767px)").matches;
             if (sortedDiaries.length > 0 && !entryIdFromUrlRef.current) {
@@ -459,74 +455,6 @@ const DiaryPage = () => {
   // If selected diary is filtered out, try to find it in the original diaries list
   const currentSelectedDiary = selectedDiary || diaries.find(d => d.id === selectedDiaryId);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const extractTextFromBlockContent = (content: any[]): string => {
-    return content.map(item => {
-      if (item.type === 'link' && item.content) {
-        return extractTextFromBlockContent(item.content);
-      }
-      return item.text || '';
-    }).join('');
-  };
-
-  const handleGenerateSummary = async () => {
-    if (!filteredDiaries.length) {
-      setAiSummary("No entries for this day to summarize.");
-      return;
-    }
-
-    setIsAiSummaryLoading(true);
-    setAiSummary(null);
-
-    try {
-      const groq = createGroq({
-        apiKey: "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",
-      });
-
-      const combinedContent = filteredDiaries
-        .map((diary) => {
-          if (!diary.content) return "";
-          try {
-            const blocks: Block[] = JSON.parse(diary.content as string);
-            return blocks
-              .map((block) => {
-                if (block.type === "paragraph" && block.content) {
-                  return extractTextFromBlockContent(block.content);
-                }
-                return "";
-              })
-              .join("\n");
-          } catch (e) {
-            // It might be plain text
-            if (typeof diary.content === 'string') {
-                return diary.content;
-            }
-            console.error("Error parsing diary content:", e);
-            return "";
-          }
-        })
-        .join("\n\n");
-
-      if (combinedContent.trim().length < 20) {
-        setAiSummary("Not enough content to generate a summary.");
-        setIsAiSummaryLoading(false);
-        return;
-      }
-
-      const { text } = await generateText({
-        model: groq("llama3-8b-8192"),
-        prompt: `Please provide a concise summary of the following journal entries for the day. The summary should be a single paragraph, highlighting the main activities, moods, and any significant events or thoughts. Entries are separated by newlines. Do not use markdown or special formatting. Just return the summary text:\n\n${combinedContent}`,
-      });
-
-      setAiSummary(text);
-    } catch (error) {
-      console.error("Error generating AI summary:", error);
-      setAiSummary("Failed to generate summary. Please try again.");
-    } finally {
-      setIsAiSummaryLoading(false);
-    }
-  };
-
   if (!userId) {
     return <div className="p-8 text-center">Please sign in to view your diaries.</div>;
   }
@@ -676,21 +604,6 @@ const DiaryPage = () => {
               </div>
             </div>
 
-            <div className="mt-4">
-              <button
-                onClick={handleGenerateSummary}
-                disabled={isAiSummaryLoading || filteredDiaries.length === 0}
-                className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isAiSummaryLoading ? 'Generating...' : 'Generate AI Summary'}
-              </button>
-              {aiSummary && (
-                <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-md">
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{aiSummary}</p>
-                </div>
-              )}
-            </div>
-
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mt-4">
               {daysOfWeek.map(day => (
@@ -702,7 +615,7 @@ const DiaryPage = () => {
                 const isToday = day && new Date(currentYear, calendarDateForLogic.getMonth(), day).toDateString() === new Date().toDateString();
                 const isSelectedDate = day && selectedDate && new Date(currentYear, calendarDateForLogic.getMonth(), day).toDateString() === selectedDate.toDateString();
                 const hasDiaryEntry = day && diaries.some(diary => {
-                    const entryDate = new Date(diary.entry_timestamp);
+                    const entryDate = new Date(diary.entry_timestamp as string);
                     return entryDate.getFullYear() === currentYear &&
                            entryDate.getMonth() === calendarDateForLogic.getMonth() &&
                            entryDate.getDate() === day;
@@ -715,8 +628,8 @@ const DiaryPage = () => {
                     disabled={!day}
                     className={`p-1.5 sm:p-2 rounded-full w-full aspect-square flex items-center justify-center text-xs sm:text-sm transition-colors
                       ${!day ? "bg-transparent cursor-default" : "hover:bg-slate-200 dark:hover:bg-slate-700"}
-                      ${isSelectedDate ? "bg-primary text-primary-foreground ring-2 ring-primary dark:bg-green-600/80 dark:text-white" 
-                        : isToday ? "bg-primary/30 text-primary-foreground dark:bg-green-500/50 dark:text-white font-semibold" 
+                      ${isSelectedDate ? "bg-primary text-primary-foreground ring-2 ring-primary dark:bg-green-600/80 dark:text-white"
+                        : isToday ? "bg-primary/30 text-primary-foreground dark:bg-green-500/50 dark:text-white font-semibold"
                         : "text-slate-700 dark:text-gray-300"}
                       ${hasDiaryEntry && !isSelectedDate ? "!bg-primary/20 dark:!bg-green-400/30 !font-bold" : ""}
                     `}
@@ -726,12 +639,15 @@ const DiaryPage = () => {
                 );
               })}
             </div>
-             <button
+            <div className="mt-4">
+              <button
                 onClick={() => setSelectedDate(null)}
-                className="w-full mt-3 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-slate-400 transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                className="w-full px-4 py-2 text-sm font-medium text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-slate-400 transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
               >
                 Show All Dates
               </button>
+            </div>
+
           </div>
         </header>
 
