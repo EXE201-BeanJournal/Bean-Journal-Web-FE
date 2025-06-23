@@ -1,34 +1,30 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { toast } from 'sonner';
 
 // --- Storage Functions ---
 /**
- * Uploads a file to Supabase Storage.
- * @param supabase The SupabaseClient instance.
- * @param bucketName The name of the storage bucket.
- * @param filePath The path within the bucket where the file will be stored.
- * @param file The file object to upload.
- * @param fileOptions Optional file options for the upload.
- * @returns The path of the uploaded file or null if an error occurred.
+ * Uploads a file to a specified Supabase storage bucket.
+ * @param supabase - The Supabase client instance.
+ * @param bucket - The name of the storage bucket.
+ * @param path - The path and filename for the file in the bucket.
+ * @param file - The file object to upload.
+ * @param options - Optional file upload options, like `upsert`.
+ * @returns The path of the uploaded file, or null if an error occurred.
  */
 export const uploadFile = async (
-  supabase: SupabaseClient,
-  bucketName: string,
-  filePath: string,
-  file: File,
-  fileOptions?: { upsert?: boolean; contentType?: string }
-) => {
-  const { data, error } = await supabase.storage
-    .from(bucketName)
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: fileOptions?.upsert || false,
-      contentType: fileOptions?.contentType || file.type,
-    });
-  if (error) {
-    console.error('Error uploading file:', error);
-    throw error;
-  }
-  return data?.path ?? null;
+    supabase: SupabaseClient, 
+    bucket: string, 
+    path: string, 
+    file: File,
+    options?: { upsert?: boolean; contentType?: string; cacheControl?: string }
+): Promise<string | null> => {
+    const { data, error } = await supabase.storage.from(bucket).upload(path, file, options);
+    if (error) {
+        console.error('Error uploading file:', error.message);
+        toast.error("File upload failed", { description: error.message });
+        return null;
+    }
+    return data?.path ?? null;
 };
 
 /**
@@ -80,21 +76,19 @@ export const deleteFiles = async (
 };
 
 /**
- * Gets the public URL for a file in Supabase Storage.
- * @param supabase The SupabaseClient instance.
- * @param bucketName The name of the storage bucket.
- * @param filePath The path of the file.
- * @returns The public URL string.
+ * Retrieves the public URL for a file in a Supabase storage bucket.
+ * @param supabase - The Supabase client instance.
+ * @param bucket - The name of the storage bucket.
+ * @param path - The path of the file in the bucket.
+ * @returns The public URL of the file.
  */
 export const getPublicUrl = (
-  supabase: SupabaseClient,
-  bucketName: string,
-  filePath: string
-) => {
-  const { data } = supabase.storage
-    .from(bucketName)
-    .getPublicUrl(filePath);
-  return data.publicUrl;
+    supabase: SupabaseClient, 
+    bucket: string, 
+    path: string
+): string => {
+    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+    return data.publicUrl;
 };
 
 /**
@@ -119,4 +113,25 @@ export const listFiles = async (
     throw error;
   }
   return data;
+};
+
+/**
+ * Deletes a file from a specified Supabase storage bucket.
+ * @param supabase - The Supabase client instance.
+ * @param bucket - The name of the storage bucket.
+ * @param path - The path of the file to delete.
+ * @returns True if the file was deleted successfully, false otherwise.
+ */
+export const deleteFile = async (
+    supabase: SupabaseClient,
+    bucket: string,
+    path: string
+): Promise<boolean> => {
+    const { error } = await supabase.storage.from(bucket).remove([path]);
+    if (error) {
+        console.error('Error deleting file:', error.message);
+        toast.error("File deletion failed", { description: error.message });
+        return false;
+    }
+    return true;
 }; 

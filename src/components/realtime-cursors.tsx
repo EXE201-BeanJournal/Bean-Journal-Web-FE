@@ -4,8 +4,8 @@ import React from 'react';
 
 const THROTTLE_MS = 50
 
-export const RealtimeCursors = ({ roomName, username, children }: { roomName: string; username: string; children: React.ReactNode }) => {
-  const { cursors } = useRealtimeCursors({ roomName, username, throttleMs: THROTTLE_MS })
+export const RealtimeCursors = ({ roomName, children }: { roomName: string; children: React.ReactNode }) => {
+  const { cursors } = useRealtimeCursors({ roomName, throttleMs: THROTTLE_MS })
 
   return (
     <div>

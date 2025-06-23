@@ -25,6 +25,18 @@ const RecentCards: React.FC<RecentCardsProps> = ({
   const CARD_WIDTH = 240; // Figma card width
   const CARD_HEIGHT = 220; // Adjusted for new design
 
+  // Helper to determine if a hex color is light or dark
+  const isColorLight = (hex: string) => {
+    if (!hex) return true;
+    const color = hex.charAt(0) === "#" ? hex.substring(1, 7) : hex;
+    const r = parseInt(color.substring(0, 2), 16);
+    const g = parseInt(color.substring(2, 4), 16);
+    const b = parseInt(color.substring(4, 6), 16);
+    // Using the WCAG formula for luminance
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return luminance > 0.5;
+  };
+
   return (
     <>
       <div className="mb-8 min-w-0">
@@ -77,6 +89,20 @@ const RecentCards: React.FC<RecentCardsProps> = ({
                     year: "numeric",
                   })
                 : "Date Placeholder";
+              
+              const isLight = isColorLight(tag.color_hex || "");
+
+              const titleClasses = tag.color_hex
+                ? isLight
+                  ? "text-gray-900"
+                  : "text-white"
+                : "text-gray-900 dark:text-gray-100";
+
+              const dateClasses = tag.color_hex
+                ? isLight
+                  ? "text-gray-600"
+                  : "text-gray-200"
+                : "text-gray-600 dark:text-gray-400";
 
               return (
                 <div
@@ -85,6 +111,7 @@ const RecentCards: React.FC<RecentCardsProps> = ({
                   style={{
                     width: `${CARD_WIDTH}px`,
                     height: `${CARD_HEIGHT}px`,
+                    backgroundColor: tag.color_hex || undefined,
                   }}
                 >
                   {/* Image Container */}
@@ -170,12 +197,12 @@ const RecentCards: React.FC<RecentCardsProps> = ({
                   {/* Content */}
                   <div className="p-4 pt-6 flex flex-col">
                     <h3
-                      className="font-bold text-lg text-gray-800 dark:text-white w-full truncate"
+                      className={`font-semibold text-xl w-full truncate ${titleClasses}`}
                       title={tag.name}
                     >
                       {tag.name}
                     </h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    <p className={`text-base mt-2 ${dateClasses}`}>
                       {formattedDate}
                     </p>
                   </div>

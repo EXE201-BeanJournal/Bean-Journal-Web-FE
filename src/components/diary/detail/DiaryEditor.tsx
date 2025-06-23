@@ -8,6 +8,16 @@ import {
   SuggestionMenuController,
   getDefaultReactSlashMenuItems,
   DefaultReactSuggestionItem,
+  CreateLinkButton,
+  UnnestBlockButton,
+  NestBlockButton,
+  TextAlignButton,
+  ColorStyleButton,
+  FileCaptionButton,
+  FileReplaceButton,
+  BasicTextStyleButton,
+  BlockTypeSelect,
+  GridSuggestionMenuController,
 } from "@blocknote/react";
 import {
   getAISlashMenuItems,
@@ -35,7 +45,7 @@ const DiaryEditor: React.FC<DiaryEditorProps> = ({
   insertTodo,
 }) => {
   return (
-    <div className="flex-grow p-4 md:p-6">
+    <div className="flex-grow p-4 md:p-6 flex flex-col">
       {editor && (
         <BlockNoteView
           editor={editor}
@@ -45,11 +55,20 @@ const DiaryEditor: React.FC<DiaryEditorProps> = ({
               setCurrentEditorContentString(JSON.stringify(editor.document));
             }
           }}
+          formattingToolbar={false}
+          emojiPicker={false}
         >
+          <GridSuggestionMenuController
+            triggerCharacter={":"}
+            // Changes the Emoji Picker to only have 5 columns.
+            columns={5}
+            minQueryLength={2}
+          />
           <AIMenuController />
           <FormattingToolbarController
-            formattingToolbar={() => (
+            formattingToolbar={(props) => (
               <FormattingToolbar
+                {...props}
                 blockTypeSelectItems={[
                   ...blockTypeSelectItems(editor.dictionary),
                   {
@@ -60,6 +79,52 @@ const DiaryEditor: React.FC<DiaryEditorProps> = ({
                   } satisfies BlockTypeSelectItem,
                 ]}
               >
+                <BlockTypeSelect key={"blockTypeSelect"} />
+
+                <FileCaptionButton key={"fileCaptionButton"} />
+                <FileReplaceButton key={"replaceFileButton"} />
+
+                <BasicTextStyleButton
+                  basicTextStyle={"bold"}
+                  key={"boldStyleButton"}
+                />
+                <BasicTextStyleButton
+                  basicTextStyle={"italic"}
+                  key={"italicStyleButton"}
+                />
+                <BasicTextStyleButton
+                  basicTextStyle={"underline"}
+                  key={"underlineStyleButton"}
+                />
+                <BasicTextStyleButton
+                  basicTextStyle={"strike"}
+                  key={"strikeStyleButton"}
+                />
+                {/* Extra button to toggle code styles */}
+                <BasicTextStyleButton
+                  key={"codeStyleButton"}
+                  basicTextStyle={"code"}
+                />
+
+                <TextAlignButton
+                  textAlignment={"left"}
+                  key={"textAlignLeftButton"}
+                />
+                <TextAlignButton
+                  textAlignment={"center"}
+                  key={"textAlignCenterButton"}
+                />
+                <TextAlignButton
+                  textAlignment={"right"}
+                  key={"textAlignRightButton"}
+                />
+
+                <ColorStyleButton key={"colorStyleButton"} />
+
+                <NestBlockButton key={"nestBlockButton"} />
+                <UnnestBlockButton key={"unnestBlockButton"} />
+
+                <CreateLinkButton key={"createLinkButton"} />
                 <AIToolbarButton />
               </FormattingToolbar>
             )}
@@ -99,4 +164,4 @@ const DiaryEditor: React.FC<DiaryEditorProps> = ({
   );
 };
 
-export default DiaryEditor; 
+export default DiaryEditor;
