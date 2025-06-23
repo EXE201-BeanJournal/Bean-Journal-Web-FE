@@ -86,7 +86,7 @@ const sortDiariesByEntryTimestamp = (a: JournalEntryWithTags, b: JournalEntryWit
 };
 
 const DiaryPage = () => {
-  const { userId } = useAuth(); // getToken removed as it's not directly used here anymore
+  const { userId, has, isLoaded } = useAuth(); // getToken removed as it's not directly used here anymore
   const { user } = useUser();
   const supabase = useSupabase();
 
@@ -115,7 +115,7 @@ const DiaryPage = () => {
   const createNewHandledRef = useRef(false); // Ref to track if createNew has been handled
   const entryIdFromUrlRef = useRef<string | null>(null); // Ref to track entryId from URL
 
-  const hasUnlimitedAccess = useMemo(() => user?.publicMetadata?.unlimited_journals_entries === true, [user]);
+  const hasUnlimitedAccess = isLoaded && has ? has({ feature: 'unlimited_journals_entries' }) : false;
 
   useEffect(() => {
     if (user && diaries) {

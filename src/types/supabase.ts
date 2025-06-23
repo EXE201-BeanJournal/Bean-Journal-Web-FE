@@ -15,6 +15,8 @@ export interface Profile {
   longest_journal_streak?: number; // INT DEFAULT 0
   last_entry_date?: string; // TIMESTAMPTZ - Adding this field for streak calculation
   preferences?: Record<string, unknown>; // JSONB
+  ai_insights?: Record<string, unknown>; // JSONB
+  ai_insights_generated_at?: string; // TIMESTAMPTZ
   created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
 }

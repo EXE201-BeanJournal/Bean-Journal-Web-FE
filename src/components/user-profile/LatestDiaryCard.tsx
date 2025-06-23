@@ -70,7 +70,7 @@ const LatestDiaryCard = ({
       <h2 className="text-xl font-semibold mb-3 text-[#2F2569] dark:text-gray-200">
         Latest Diary
       </h2>
-      <div className="p-4 sm:p-5 rounded-lg shadow-md relative group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-700/70 dark:hover:bg-slate-700/90 dark:border-slate-600 dark:hover:border-slate-500">
+      <div className="p-4 sm:p-5 rounded-lg shadow-lg  relative group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-700/70 dark:hover:bg-slate-700/90 dark:border-slate-600 dark:hover:border-slate-500">
         <div className="grid grid-cols-12 gap-4 items-start">
           <div className="col-span-3 md:col-span-2 flex items-center justify-center">
             <div className="w-24 h-24 sm:w-32 sm:h-32 bg-gray-300/50 dark:bg-gray-700/50 rounded-lg flex items-center justify-center overflow-hidden">
