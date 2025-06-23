@@ -6,8 +6,10 @@ const TABLE_NAME = 'memory_zone_media_attachments';
 
 export const addAttachment = async (
   supabase: SupabaseClient,
-  attachment: Omit<MemoryZoneMediaAttachment, 'id' | 'created_at' | 'file_url_cached_expires_at'>
+  attachment: Omit<MemoryZoneMediaAttachment, 'id' | 'created_at' | 'file_url_cached_expires_at'> & { public_url?: string }
 ): Promise<MemoryZoneMediaAttachment | null> => {
+  delete attachment.public_url;
+
   const { data, error } = await supabase
     .from(TABLE_NAME)
     .insert(attachment)
