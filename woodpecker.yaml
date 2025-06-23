@@ -20,8 +20,8 @@ steps:
       - nvm use node
       - corepack enable pnpm
       - echo "$ENVI" | sudo tee .env > /dev/null
-      - ls
       - pnpm install --no-frozen-lockfile
+      - pnpm add @mantine/core
       - pnpm build
   - name: Deploy FE
     image: bash # Using the official bash Docker image
