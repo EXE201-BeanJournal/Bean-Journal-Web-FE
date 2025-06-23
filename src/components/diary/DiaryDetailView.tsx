@@ -46,7 +46,7 @@ import DiaryEditor from "./detail/DiaryEditor";
 import DiaryModals from "./detail/DiaryModals";
 import { generateJournalImage } from "@/services/imageGenerationService";
 import { createFacebookShare } from "@/services/facebookShareService";
-import { createLinkedInShare } from "@/services/linkedInShareService";
+import { createLinkedInShare } from "@/services/linkedinShareService";
 import { useDebouncedCallback } from "use-debounce";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";

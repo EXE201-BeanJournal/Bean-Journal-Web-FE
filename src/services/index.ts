@@ -22,4 +22,4 @@ export * from './memoryZoneCollaboratorService';
 export * from './memoryZoneMediaAttachmentService';
 export * from './facebookShareService';
 export * from './imageGenerationService';
-export * from './linkedInShareService';
+export * from "./linkedinShareService";
