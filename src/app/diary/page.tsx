@@ -6,13 +6,11 @@ import DiaryCard from '@/components/diary/DiaryCard';
 import DiaryDetailView from '@/components/diary/DiaryDetailView';
 import { JournalEntry, Tag, Project } from '@/types/supabase';
 // import { createClerkSupabaseClient } from "@/utils/supabaseClient"; // No longer needed
-import { useAuth } from "@clerk/clerk-react"; // Kept for userId, getToken might be removed if not used elsewhere
+import { useAuth, useUser } from "@clerk/clerk-react"; // Kept for userId, getToken might be removed if not used elsewhere
 import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
 import { createJournalEntry, getJournalEntriesByUserId, updateJournalEntry, deleteJournalEntry } from '@/services/journalEntryService'; // Added journal entry services and updateJournalEntry
 import { getTagsByUserId, getEntryTagsByEntryId } from '@/services/tagService'; // Added tag service and getEntryTagsByEntryId
 import { getProjectsByUserId } from '@/services/projectService'; // ADDED: Import project service
-// import Calendar from 'react-calendar'; // REMOVED react-calendar import
-// import 'react-calendar/dist/Calendar.css'; // REMOVED react-calendar CSS
 // import { useRouter, useSearchParams } from 'next/navigation'; // REMOVE Next.js router hooks
 import { useNavigate, useSearch, useRouterState } from '@tanstack/react-router'; // Import TanStack Router hooks
 import { ChevronLeft, ChevronRight } from 'lucide-react'; // Added Chevron icons
@@ -21,6 +19,7 @@ import { Block } from '@blocknote/core';
 import { generateText } from 'ai';
 import { DiaryCardSkeleton } from '@/components/diary/DiaryCardSkeleton';
 import { DiaryDetailViewSkeleton } from '@/components/diary/DiaryDetailViewSkeleton';
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 // ADDED: Imports for Realtime components
 // import { RealtimeAvatarStack } from '@/components/realtime-avatar-stack'; 
@@ -90,6 +89,7 @@ const sortDiariesByEntryTimestamp = (a: JournalEntryWithTags, b: JournalEntryWit
 
 const DiaryPage = () => {
   const { userId } = useAuth(); // getToken removed as it's not directly used here anymore
+  const { user } = useUser();
   const supabase = useSupabase();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -108,6 +108,7 @@ const DiaryPage = () => {
 
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [isAiSummaryLoading, setIsAiSummaryLoading] = useState(false);
+  const [canCreateNewDiary, setCanCreateNewDiary] = useState(true);
 
   // const router = useRouter(); // REMOVE Next.js useRouter
   // const searchParams = useSearchParams(); // REMOVE Next.js useSearchParams
@@ -118,7 +119,31 @@ const DiaryPage = () => {
   const createNewHandledRef = useRef(false); // Ref to track if createNew has been handled
   const entryIdFromUrlRef = useRef<string | null>(null); // Ref to track entryId from URL
 
+  const hasUnlimitedAccess = useMemo(() => user?.publicMetadata?.unlimited_journals_entries === true, [user]);
+
+  useEffect(() => {
+    if (user && diaries) {
+        if (!hasUnlimitedAccess) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const diariesCreatedToday = diaries.filter(diary => {
+                if (!diary.entry_timestamp) return false;
+                const entryDate = new Date(diary.entry_timestamp);
+                return entryDate.toDateString() === today.toDateString();
+            });
+
+            setCanCreateNewDiary(diariesCreatedToday.length < 1);
+        } else {
+            setCanCreateNewDiary(true);
+        }
+    }
+  }, [diaries, user, hasUnlimitedAccess]);
+
   const handleCreateNew = useCallback(async () => {
+    if (!canCreateNewDiary) {
+      return;
+    }
     if (!userId || !supabase) {
       setError("User not authenticated or Supabase client not available.");
       return;
@@ -144,7 +169,7 @@ const DiaryPage = () => {
       console.error("Error creating new diary:", err);
       setError("An error occurred while creating the new diary.");
     }
-  }, [userId, supabase, activeFilterProjectId]);
+  }, [userId, supabase, activeFilterProjectId, canCreateNewDiary]);
 
   // Effect to handle 'createNew' search parameter
   useEffect(() => {
@@ -534,13 +559,28 @@ const DiaryPage = () => {
             <RealtimeAvatarStack roomName="diary_collaboration_room" />
           </div> */}
 
-          <button 
-            onClick={handleCreateNew}
-            disabled={false} // No longer tied to a specific loading state
-            className="w-full mt-3 mb-3 px-4 py-2 text-sm font-medium text-black bg-[#DAE6D4] rounded-lg hover:bg-[#DAE6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#DAE6D4] transition-colors disabled:opacity-50"
-          >
-            + Create New Diary
-          </button>
+          <TooltipProvider>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <div className="w-full mt-3 mb-3">
+                  <button
+                    onClick={handleCreateNew}
+                    disabled={!canCreateNewDiary}
+                    className="w-full px-4 py-2 text-sm font-medium text-black bg-[#DAE6D4] rounded-lg hover:bg-[#DAE6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#DAE6D4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    + Create New Diary
+                  </button>
+                </div>
+              </TooltipTrigger>
+              {!canCreateNewDiary && (
+                <TooltipContent>
+                  <p className="text-sm font-semibold">Free plan limit reached.</p>
+                  <p className="text-xs">You can create one diary per day. Upgrade for unlimited entries.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          
           <div className="relative mt-2">
             <input 
               type="text" 
@@ -766,6 +806,7 @@ const DiaryPage = () => {
               onDeleteDiary={handleDeleteDiary} 
               userId={userId}
               supabase={supabase}
+              hasUnlimitedAccess={hasUnlimitedAccess}
             />
           ) : diaries.length === 0 ? (
             <div className="text-center py-10 flex flex-col items-center justify-center h-full">

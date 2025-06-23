@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { useState, useEffect } from 'react';
 import { MemoryZone } from '@/types/supabase';
 import { MemoryZoneSettings } from '@/components/journal/MemoryZoneSettings';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export const Route = createFileRoute('/journal/memory-zone/')({
   component: MemoryZoneListPage,
@@ -63,7 +64,7 @@ const getContentPreview = (content: string | null | undefined): string => {
 
 function MemoryZoneListPage() {
   const supabase = useSupabase();
-  const { userId } = useAuth();
+  const { userId, has, isLoaded } = useAuth();
   
   const [memoryZones, setMemoryZones] = useState<MemoryZone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -73,6 +74,9 @@ function MemoryZoneListPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newZoneTitle, setNewZoneTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const hasUnlimitedMemoryZones = isLoaded && has ? has({ feature: 'unlimited_memory_zones' }) : false;
+  const canCreateZone = hasUnlimitedMemoryZones || memoryZones.length < 3;
 
   const fetchMemoryZones = async () => {
     if (!supabase || !userId) return;
@@ -93,9 +97,11 @@ function MemoryZoneListPage() {
   };
 
   useEffect(() => {
-    fetchMemoryZones();
+    if (isLoaded) {
+      fetchMemoryZones();
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, userId]);
+  }, [supabase, userId, isLoaded]);
 
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,46 +132,62 @@ function MemoryZoneListPage() {
           <h1 className="text-3xl font-bold text-gray-800 dark:text-white">Your Memory Zones</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">All your collaborative journals in one place.</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Create New Zone
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
-            <form onSubmit={handleCreateZone}>
-              <DialogHeader>
-                <DialogTitle>Create New Memory Zone</DialogTitle>
-                <DialogDescription>
-                  Give your new collaborative journal a title. You can invite members later.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="title" className="text-right">
-                    Title
-                  </Label>
-                  <Input
-                    id="title"
-                    value={newZoneTitle}
-                    onChange={(e) => setNewZoneTitle(e.target.value)}
-                    className="col-span-3"
-                    placeholder="e.g., European Adventure"
-                    required
-                    disabled={isSubmitting}
-                  />
+        <div className="flex items-center gap-4">
+          <TooltipProvider>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <div className="inline-block">
+                  <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button disabled={!canCreateZone || isLoading}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Create New Zone
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="sm:max-w-[425px]">
+                      <form onSubmit={handleCreateZone}>
+                        <DialogHeader>
+                          <DialogTitle>Create New Memory Zone</DialogTitle>
+                          <DialogDescription>
+                            Give your new collaborative journal a title. You can invite members later.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="title" className="text-right">
+                              Title
+                            </Label>
+                            <Input
+                              id="title"
+                              value={newZoneTitle}
+                              onChange={(e) => setNewZoneTitle(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., European Adventure"
+                              required
+                              disabled={isSubmitting}
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Create Zone
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </DialogContent>
+                  </Dialog>
                 </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Create Zone
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
+              </TooltipTrigger>
+              {!canCreateZone && !isLoading && (
+                <TooltipContent>
+                  <p className="text-sm font-semibold">Free plan limit reached.</p>
+                  <p className="text-xs">Upgrade for unlimited zones.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </header>
 
       {isLoading && (
