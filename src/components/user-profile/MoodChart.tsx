@@ -15,14 +15,9 @@ const moodToValue: { [key: string]: number } = {
 
 export interface DailyAverageMood {
   date: string;
-  dayAbbreviation: string;
+  dayLabel: string; // Will hold the day of the month
   averageMood: number | null; // Use null for days with no entries
 }
-
-const getLocalDayAbbreviation = (date: Date): string => {
-  const days = ["Su", "M", "Tu", "W", "Th", "F", "Sa"];
-  return days[date.getDay()];
-};
 
 interface MoodChartProps {
   userJournalEntries: JournalEntry[];
@@ -34,11 +29,15 @@ const MoodChart = ({ userJournalEntries }: MoodChartProps) => {
 
   useEffect(() => {
     const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth(); // 0-indexed for Date object
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
     const data: DailyAverageMood[] = [];
 
-    for (let i = 6; i >= 0; i--) {
-      const targetDate = new Date(today);
-      targetDate.setDate(today.getDate() - i);
+    for (let day = 1; day <= daysInMonth; day++) {
+      const targetDate = new Date(year, month, day);
+      // Format date as YYYY-MM-DD for reliable matching
       const dateString = targetDate.toISOString().split("T")[0];
 
       const entriesOnThisDay = userJournalEntries.filter(
@@ -60,7 +59,7 @@ const MoodChart = ({ userJournalEntries }: MoodChartProps) => {
 
       data.push({
         date: dateString,
-        dayAbbreviation: getLocalDayAbbreviation(targetDate),
+        dayLabel: String(day), // Use day of the month for the x-axis label
         averageMood: averageMood,
       });
     }

@@ -59,7 +59,7 @@ const MoodLineChart = ({ data }: MoodLineChartProps) => {
       >
         <CartesianGrid strokeDasharray="3 3" strokeOpacity={0.2} />
         <XAxis
-          dataKey="dayAbbreviation"
+          dataKey="dayLabel"
           tick={{ fontSize: 12 }}
           axisLine={false}
           tickLine={false}
