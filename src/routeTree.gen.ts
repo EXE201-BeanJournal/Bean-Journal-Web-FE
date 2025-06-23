@@ -24,12 +24,15 @@ import { Route as IndexImport } from './routes/index'
 import { Route as JournalIndexImport } from './routes/journal/index'
 import { Route as SignUpContinueImport } from './routes/sign-up/continue'
 import { Route as SignInSsoCallbackImport } from './routes/sign-in/sso-callback'
+import { Route as ShareShareIdImport } from './routes/share/$shareId'
 import { Route as JournalUserProfileImport } from './routes/journal/user-profile'
 import { Route as JournalTodoImport } from './routes/journal/todo'
 import { Route as JournalDiaryImport } from './routes/journal/diary'
 import { Route as JournalDashboardImport } from './routes/journal/dashboard'
 import { Route as JournalBeanJourneyImport } from './routes/journal/bean-journey'
+import { Route as JournalMemoryZoneIndexImport } from './routes/journal/memory-zone/index'
 import { Route as JournalProjectProjectIdImport } from './routes/journal/project/$projectId'
+import { Route as JournalMemoryZoneZoneIdImport } from './routes/journal/memory-zone/$zoneId'
 
 // Create/Update Routes
 
@@ -110,6 +113,12 @@ const SignInSsoCallbackRoute = SignInSsoCallbackImport.update({
   getParentRoute: () => SignInRoute,
 } as any)
 
+const ShareShareIdRoute = ShareShareIdImport.update({
+  id: '/share/$shareId',
+  path: '/share/$shareId',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const JournalUserProfileRoute = JournalUserProfileImport.update({
   id: '/user-profile',
   path: '/user-profile',
@@ -140,9 +149,21 @@ const JournalBeanJourneyRoute = JournalBeanJourneyImport.update({
   getParentRoute: () => JournalRoute,
 } as any)
 
+const JournalMemoryZoneIndexRoute = JournalMemoryZoneIndexImport.update({
+  id: '/memory-zone/',
+  path: '/memory-zone/',
+  getParentRoute: () => JournalRoute,
+} as any)
+
 const JournalProjectProjectIdRoute = JournalProjectProjectIdImport.update({
   id: '/project/$projectId',
   path: '/project/$projectId',
+  getParentRoute: () => JournalRoute,
+} as any)
+
+const JournalMemoryZoneZoneIdRoute = JournalMemoryZoneZoneIdImport.update({
+  id: '/memory-zone/$zoneId',
+  path: '/memory-zone/$zoneId',
   getParentRoute: () => JournalRoute,
 } as any)
 
@@ -255,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JournalUserProfileImport
       parentRoute: typeof JournalImport
     }
+    '/share/$shareId': {
+      id: '/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof ShareShareIdImport
+      parentRoute: typeof rootRoute
+    }
     '/sign-in/sso-callback': {
       id: '/sign-in/sso-callback'
       path: '/sso-callback'
@@ -276,11 +304,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JournalIndexImport
       parentRoute: typeof JournalImport
     }
+    '/journal/memory-zone/$zoneId': {
+      id: '/journal/memory-zone/$zoneId'
+      path: '/memory-zone/$zoneId'
+      fullPath: '/journal/memory-zone/$zoneId'
+      preLoaderRoute: typeof JournalMemoryZoneZoneIdImport
+      parentRoute: typeof JournalImport
+    }
     '/journal/project/$projectId': {
       id: '/journal/project/$projectId'
       path: '/project/$projectId'
       fullPath: '/journal/project/$projectId'
       preLoaderRoute: typeof JournalProjectProjectIdImport
+      parentRoute: typeof JournalImport
+    }
+    '/journal/memory-zone/': {
+      id: '/journal/memory-zone/'
+      path: '/memory-zone'
+      fullPath: '/journal/memory-zone'
+      preLoaderRoute: typeof JournalMemoryZoneIndexImport
       parentRoute: typeof JournalImport
     }
   }
@@ -295,7 +337,9 @@ interface JournalRouteChildren {
   JournalTodoRoute: typeof JournalTodoRoute
   JournalUserProfileRoute: typeof JournalUserProfileRoute
   JournalIndexRoute: typeof JournalIndexRoute
+  JournalMemoryZoneZoneIdRoute: typeof JournalMemoryZoneZoneIdRoute
   JournalProjectProjectIdRoute: typeof JournalProjectProjectIdRoute
+  JournalMemoryZoneIndexRoute: typeof JournalMemoryZoneIndexRoute
 }
 
 const JournalRouteChildren: JournalRouteChildren = {
@@ -305,7 +349,9 @@ const JournalRouteChildren: JournalRouteChildren = {
   JournalTodoRoute: JournalTodoRoute,
   JournalUserProfileRoute: JournalUserProfileRoute,
   JournalIndexRoute: JournalIndexRoute,
+  JournalMemoryZoneZoneIdRoute: JournalMemoryZoneZoneIdRoute,
   JournalProjectProjectIdRoute: JournalProjectProjectIdRoute,
+  JournalMemoryZoneIndexRoute: JournalMemoryZoneIndexRoute,
 }
 
 const JournalRouteWithChildren =
@@ -349,10 +395,13 @@ export interface FileRoutesByFullPath {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal/': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -370,10 +419,13 @@ export interface FileRoutesByTo {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
 }
 
 export interface FileRoutesById {
@@ -393,10 +445,13 @@ export interface FileRoutesById {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal/': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone/': typeof JournalMemoryZoneIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -417,10 +472,13 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal/'
+    | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/journal/memory-zone'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -437,10 +495,13 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal'
+    | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/journal/memory-zone'
   id:
     | '__root__'
     | '/'
@@ -458,10 +519,13 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal/'
+    | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/journal/memory-zone/'
   fileRoutesById: FileRoutesById
 }
 
@@ -476,6 +540,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRouteWithChildren
   SignUpRoute: typeof SignUpRouteWithChildren
   ThemeShopRoute: typeof ThemeShopRoute
+  ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -489,6 +554,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRouteWithChildren,
   SignUpRoute: SignUpRouteWithChildren,
   ThemeShopRoute: ThemeShopRoute,
+  ShareShareIdRoute: ShareShareIdRoute,
 }
 
 export const routeTree = rootRoute
@@ -510,7 +576,8 @@ export const routeTree = rootRoute
         "/pricing",
         "/sign-in",
         "/sign-up",
-        "/theme-shop"
+        "/theme-shop",
+        "/share/$shareId"
       ]
     },
     "/": {
@@ -537,7 +604,9 @@ export const routeTree = rootRoute
         "/journal/todo",
         "/journal/user-profile",
         "/journal/",
-        "/journal/project/$projectId"
+        "/journal/memory-zone/$zoneId",
+        "/journal/project/$projectId",
+        "/journal/memory-zone/"
       ]
     },
     "/pricing": {
@@ -578,6 +647,9 @@ export const routeTree = rootRoute
       "filePath": "journal/user-profile.tsx",
       "parent": "/journal"
     },
+    "/share/$shareId": {
+      "filePath": "share/$shareId.tsx"
+    },
     "/sign-in/sso-callback": {
       "filePath": "sign-in/sso-callback.tsx",
       "parent": "/sign-in"
@@ -590,8 +662,16 @@ export const routeTree = rootRoute
       "filePath": "journal/index.tsx",
       "parent": "/journal"
     },
+    "/journal/memory-zone/$zoneId": {
+      "filePath": "journal/memory-zone/$zoneId.tsx",
+      "parent": "/journal"
+    },
     "/journal/project/$projectId": {
       "filePath": "journal/project/$projectId.tsx",
+      "parent": "/journal"
+    },
+    "/journal/memory-zone/": {
+      "filePath": "journal/memory-zone/index.tsx",
       "parent": "/journal"
     }
   }

@@ -1,0 +1,40 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  width: 100vw;
+  background-color: #fdfaf6;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+}
+
+.logo_container {
+  margin-bottom: 2rem;
+}
+
+.logo {
+  height: 80px;
+  width: 80px;
+  color: #5a3825;
+}
+
+.wavy {
+  display: flex;
+  justify-content: center;
+  -webkit-box-reflect: below -20px linear-gradient(transparent, rgba(0, 0, 0, 0.2));
+}
+
+.wavy span {
+  position: relative;
+  display: inline-block;
+  font-size: 3rem;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
+  font-weight: bold;
+  color: #5a3825;
+  text-transform: uppercase;
+  margin: 0 3px;
+} 

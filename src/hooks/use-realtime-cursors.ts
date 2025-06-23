@@ -1,7 +1,7 @@
-import { createClerkSupabaseClient } from '@/utils/supabaseClient'
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSession } from '@clerk/clerk-react'; // Assuming @clerk/clerk-react, adjust if using a different Clerk package e.g. @clerk/nextjs
+import { useSupabase } from '@/contexts/SupabaseContext';
+import { useUser } from '@clerk/clerk-react';
 
 /**
  * Throttle a callback to a certain delay, It will only call the callback if the delay has passed, with the arguments
@@ -42,8 +42,6 @@ const useThrottleCallback = <Params extends unknown[], Return>(
 
 const generateRandomColor = () => `hsl(${Math.floor(Math.random() * 360)}, 100%, 70%)`
 
-const generateRandomNumber = () => Math.floor(Math.random() * 100)
-
 const EVENT_NAME = 'realtime-cursor-move'
 
 type CursorEventPayload = {
@@ -52,7 +50,7 @@ type CursorEventPayload = {
     y: number
   }
   user: {
-    id: number
+    id: string
     name: string
   }
   color: string
@@ -61,26 +59,23 @@ type CursorEventPayload = {
 
 export const useRealtimeCursors = ({
   roomName,
-  username,
   throttleMs,
 }: {
   roomName: string
-  username: string
   throttleMs: number
 }) => {
   const [color] = useState(generateRandomColor())
-  const { session } = useSession();
-  const [supabaseClient] = useState(() => {
-    if (!session) return null;
-    return createClerkSupabaseClient(() => session.getToken({ template: 'supabase' }));
-  });
-  const [userId] = useState(generateRandomNumber())
+  const supabase = useSupabase();
+  const { user } = useUser();
+
   const [cursors, setCursors] = useState<Record<string, CursorEventPayload>>({})
 
   const channelRef = useRef<RealtimeChannel | null>(null)
 
   const callback = useCallback(
     (event: MouseEvent) => {
+      if (!user) return;
+
       const { clientX, clientY } = event
 
       const payload: CursorEventPayload = {
@@ -89,8 +84,8 @@ export const useRealtimeCursors = ({
           y: clientY,
         },
         user: {
-          id: userId,
-          name: username,
+          id: user.id,
+          name: user.fullName || 'Anonymous',
         },
         color: color,
         timestamp: new Date().getTime(),
@@ -102,39 +97,34 @@ export const useRealtimeCursors = ({
         payload: payload,
       })
     },
-    [color, userId, username]
+    [color, user]
   )
 
   const handleMouseMove = useThrottleCallback(callback, throttleMs)
 
   useEffect(() => {
-    if (!supabaseClient) return;
-    const channel = supabaseClient.channel(roomName)
+    if (!supabase || !user) return;
+
+    const channel = supabase.channel(roomName)
     channelRef.current = channel
 
     channel
       .on('broadcast', { event: EVENT_NAME }, (data: { payload: CursorEventPayload }) => {
-        const { user } = data.payload
+        const { user: eventUser } = data.payload
         // Don't render your own cursor
-        if (user.id === userId) return
+        if (eventUser.id === user.id) return
 
-        setCursors((prev) => {
-          if (prev[userId]) {
-            delete prev[userId]
-          }
-
-          return {
-            ...prev,
-            [user.id]: data.payload,
-          }
-        })
+        setCursors((prev) => ({
+          ...prev,
+          [eventUser.id]: data.payload,
+        }))
       })
       .subscribe()
 
     return () => {
       channel.unsubscribe()
     }
-  }, [])
+  }, [supabase, roomName, user])
 
   useEffect(() => {
     // Add event listener for mousemove

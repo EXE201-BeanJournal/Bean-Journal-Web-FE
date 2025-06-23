@@ -34,6 +34,7 @@ export interface JournalEntry {
   created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   project_id?: string | null; // UUID NULL
+  todo_items?: TodoItem[]; // Added for project page
 }
 
 export interface MediaAttachment {
@@ -264,4 +265,53 @@ export interface FacebookShare {
   share_link_used?: string; // TEXT
   share_caption?: string; // TEXT
   share_description?: string; // TEXT
+}
+
+export interface LinkedInShare {
+  id?: string; // UUID
+  user_id: string; // TEXT
+  journal_entry_id: string; // UUID
+  linkedin_share_urn?: string; // TEXT
+  preview_image_path: string; // TEXT
+  preview_image_url_cached: string; // TEXT
+  shared_at?: string; // TIMESTAMPTZ
+  share_content_url?: string; // TEXT
+  share_text_snippet?: string; // TEXT
+}
+
+export type CollaboratorProfile = Pick<Profile, 'id' | 'username' | 'email'>;
+
+export interface MemoryZone {
+  id?: string; // UUID
+  owner_id: string; // TEXT
+  title: string; // TEXT
+  content?: string; // TEXT
+  last_content_editor_id?: string; // TEXT
+  created_at?: string; // TIMESTAMPTZ
+  updated_at?: string; // TIMESTAMPTZ
+}
+
+export interface MemoryZoneMediaAttachment {
+  id?: string; // UUID
+  memory_zone_id: string; // UUID
+  uploader_id: string; // TEXT
+  file_path: string; // TEXT
+  file_name_original?: string; // TEXT
+  file_type?: string; // TEXT
+  mime_type?: string; // TEXT
+  file_size_bytes?: number; // BIGINT
+  file_url_cached?: string; // TEXT
+  file_url_cached_expires_at?: string; // TIMESTAMPTZ
+  description?: string; // TEXT
+  created_at?: string; // TIMESTAMPTZ
+}
+
+export interface MemoryZoneCollaborator {
+  id?: string; // UUID
+  memory_zone_id: string; // UUID
+  user_id: string; // TEXT
+  permission_level: 'view' | 'comment' | 'edit'; // TEXT
+  invited_by?: string; // TEXT
+  joined_at?: string; // TIMESTAMPTZ
+  created_at?: string; // TIMESTAMPTZ
 } 

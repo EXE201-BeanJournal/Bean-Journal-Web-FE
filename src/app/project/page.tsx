@@ -4,9 +4,10 @@ import { getJournalEntriesByProjectId } from "@/services/journalEntryService"; /
 import type { Project, JournalEntry } from "@/types/supabase";
 import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
 import { Link } from "@tanstack/react-router";
-import { CalendarDays } from "lucide-react"; // Added for date display
+import { CalendarDays, CheckCircle2, Circle, ListTodo } from "lucide-react"; // Added for date display and todos
 import { moodOptions } from "@/components/diary/MoodSelector"; // Added for mood display
 import { Image as ImageIcon } from "lucide-react"; // Added for image display
+import { ProjectPageSkeleton } from "@/components/skeletons/ProjectPageSkeleton";
 
 // Helper function to parse BlockNote JSON content (copied from user-profile/page.tsx)
 const parseBlockNoteJsonContent = (
@@ -55,16 +56,14 @@ interface ProjectPageProps {
 const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
   const [project, setProject] = useState<Project | null>(null);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
-  const [isLoadingProject, setIsLoadingProject] = useState(true);
-  const [isLoadingEntries, setIsLoadingEntries] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const supabase = useSupabase(); // New way
 
   useEffect(() => {
     if (!projectId || !supabase) {
-      // Use supabase from context
-      setIsLoadingProject(false);
+      setIsLoading(false);
       setError(
         projectId
           ? "Could not initialize Supabase client."
@@ -72,41 +71,40 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
       );
       return;
     }
-    setIsLoadingProject(true);
-    setError(null); // Reset error before fetching
-    getProjectById(supabase, projectId) // Pass supabase client
-      .then((data) => {
-        setProject(data);
-        if (!data) setError("Project not found.");
-      })
-      .catch((err) => {
-        console.error("Error fetching project:", err);
+
+    const fetchProjectData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const projectData = await getProjectById(supabase, projectId);
+        setProject(projectData);
+
+        if (projectData && projectData.id) {
+          const entriesData = await getJournalEntriesByProjectId(
+            supabase,
+            projectData.id
+          );
+          setJournalEntries(entriesData || []);
+        } else {
+          setError("Project not found.");
+          setJournalEntries([]);
+        }
+      } catch (err) {
+        console.error("Error fetching project data:", err);
         setError("Failed to load project details.");
-      })
-      .finally(() => setIsLoadingProject(false));
+        setProject(null);
+        setJournalEntries([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjectData();
   }, [projectId, supabase]);
 
-  useEffect(() => {
-    if (!project || !project.id || !supabase) {
-      // Use supabase from context, ensured project and project.id exist
-      setJournalEntries([]);
-      setIsLoadingEntries(project ? true : false); // Only set loading if project was defined
-      return;
-    }
-    setIsLoadingEntries(true);
-    getJournalEntriesByProjectId(supabase, project.id) // Pass supabase client, project.id is now guaranteed to be a string
-      .then((data) => {
-        setJournalEntries(data || []);
-      })
-      .catch((err) => {
-        console.error("Error fetching journal entries for project:", err);
-        // setError('Failed to load journal entries for this project.'); // Avoid overwriting main project error
-      })
-      .finally(() => setIsLoadingEntries(false));
-  }, [project, supabase]); // project.id is implicitly covered by project dependency
-
-  if (isLoadingProject) {
-    return <div className="p-4 text-center">Loading project details...</div>;
+  if (isLoading) {
+    return <ProjectPageSkeleton />;
   }
 
   if (error && !project) {
@@ -166,81 +164,124 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-200">
           Associated Diaries
         </h2>
-        {isLoadingEntries && !journalEntries.length ? (
-          <div className="text-center py-6 text-gray-500 dark:text-gray-400">
-            Loading diaries...
-          </div>
-        ) : journalEntries.length > 0 ? (
+        {journalEntries.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {journalEntries.map((entry) => {
               const moodOption = entry.manual_mood_label
                 ? moodOptions.find((m) => m.value === entry.manual_mood_label)
                 : null;
-              const { imageUrl } = parseBlockNoteJsonContent(entry.content);
+              const { imageUrl, textContent } = parseBlockNoteJsonContent(
+                entry.content
+              );
+              const todos = entry.todo_items || [];
+              const completedTodos = todos.filter((t) => t.is_completed).length;
 
               return (
-                <Link to={`/journal/diary`} search={{ entryId: entry.id }}>
-                  <div
-                    key={entry.id}
-                    className="p-4 rounded-lg shadow-md flex gap-4 items-start group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-700/70 dark:hover:bg-slate-700/90 dark:border-slate-600 dark:hover:border-slate-500"
+                <div
+                  key={entry.id}
+                  className="rounded-lg shadow-md flex flex-col group text-gray-800 dark:text-gray-100 transition-all duration-200 ease-in-out border bg-[#F5F8F4] hover:bg-[#E9F0E6] border-[#DDE8DA] hover:border-[#CFE0CA] dark:bg-slate-800/70 dark:hover:bg-slate-800/90 dark:border-slate-700 dark:hover:border-slate-600"
+                >
+                  <Link
+                    to={`/journal/diary`}
+                    search={{ entryId: entry.id }}
+                    className="block p-4"
                   >
-                    {/* Image Section (Left) */}
-                    <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-gray-200 dark:bg-slate-600/50 rounded-lg flex items-center justify-center overflow-hidden">
-                      {imageUrl ? (
-                        <img
-                          src={imageUrl}
-                          alt="Diary image"
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <ImageIcon
-                          size={32}
-                          className="text-gray-400 dark:text-slate-500"
-                        />
-                      )}
-                    </div>
-
-                    {/* Content Section (Right) */}
-                    <div className="flex-grow flex flex-col min-w-0 h-full">
-                      {" "}
-                      {/* h-full to allow mt-auto for date*/}
-                      <div className="flex justify-between items-start mb-1">
-                        <h3
-                          className="text-lg font-semibold text-slate-700 dark:text-slate-200 truncate mr-2 flex-grow"
-                          style={{ fontFamily: "Readex Pro, sans-serif" }}
-                        >
-                          <Link
-                            to={`/journal/diary`}
-                            search={{ entryId: entry.id }}
-                            className="hover:text-sky-600 dark:hover:text-sky-400 transition-colors"
-                          >
-                            {entry.title || "Untitled Entry"}
-                          </Link>
-                        </h3>
-                        {moodOption && (
+                    <div className="flex gap-4 items-start">
+                      {/* Image Section (Left) */}
+                      <div className="w-20 h-20 sm:w-24 sm:h-24 flex-shrink-0 bg-gray-200 dark:bg-slate-700/50 rounded-lg flex items-center justify-center overflow-hidden">
+                        {imageUrl ? (
                           <img
-                            src={moodOption.emojiPath}
-                            alt={moodOption.label}
-                            className="w-6 h-6 flex-shrink-0"
-                            title={`Mood: ${moodOption.label}`}
+                            src={imageUrl}
+                            alt="Diary image"
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon
+                            size={32}
+                            className="text-gray-400 dark:text-slate-500"
                           />
                         )}
                       </div>
-                      {/* Spacer to push date to bottom */}
-                      <div className="flex-grow"></div>
-                      <div
-                        className="flex items-center text-xs text-slate-400 dark:text-slate-500 pt-1"
-                        style={{ fontFamily: "Readex Pro, sans-serif" }}
-                      >
-                        <CalendarDays
-                          size={14}
-                          className="mr-1.5 flex-shrink-0"
-                        />
-                        <span>{formatDate(entry.entry_timestamp)}</span>
+
+                      {/* Content Section (Right) */}
+                      <div className="flex-grow flex flex-col min-w-0 h-full">
+                        <div className="flex justify-between items-start mb-1">
+                          <h3
+                            className="text-lg font-semibold text-slate-700 dark:text-slate-200 truncate mr-2 flex-grow"
+                            style={{ fontFamily: "Readex Pro, sans-serif" }}
+                          >
+                            {entry.title || "Untitled Entry"}
+                          </h3>
+                          {moodOption && (
+                            <img
+                              src={moodOption.emojiPath}
+                              alt={moodOption.label}
+                              className="w-6 h-6 flex-shrink-0"
+                              title={`Mood: ${moodOption.label}`}
+                            />
+                          )}
+                        </div>
+
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2 mb-2">
+                          {textContent}
+                        </p>
+                        <div className="flex-grow"></div>
+                        <div
+                          className="flex items-center text-xs text-slate-400 dark:text-slate-500 pt-1"
+                          style={{ fontFamily: "Readex Pro, sans-serif" }}
+                        >
+                          <CalendarDays
+                            size={14}
+                            className="mr-1.5 flex-shrink-0"
+                          />
+                          <span>{formatDate(entry.entry_timestamp)}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                  {/* To-do List Section */}
+                  {todos.length > 0 && (
+                    <div className="border-t border-[#DDE8DA] dark:border-slate-700 mt-2 pt-3 pb-4 px-4">
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="flex items-center text-sm font-semibold text-slate-600 dark:text-slate-300">
+                          <ListTodo size={16} className="mr-2" />
+                          <span>To-Do List</span>
+                        </div>
+                        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                          {completedTodos}/{todos.length} Done
+                        </span>
+                      </div>
+                      <ul className="space-y-1.5">
+                        {todos.slice(0, 3).map((todo) => ( // Show max 3 todos
+                          <li
+                            key={todo.id}
+                            className="flex items-center text-sm text-slate-600 dark:text-slate-300"
+                          >
+                            {todo.is_completed ? (
+                              <CheckCircle2
+                                size={14}
+                                className="mr-2 flex-shrink-0 text-green-500"
+                              />
+                            ) : (
+                              <Circle
+                                size={14}
+                                className="mr-2 flex-shrink-0 text-slate-400"
+                              />
+                            )}
+                            <span className={`truncate ${todo.is_completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                              {todo.task_description}
+                            </span>
+                          </li>
+                        ))}
+                        {todos.length > 3 && (
+                            <li className="text-xs text-center text-slate-500 dark:text-slate-400 pt-1">
+                                +{todos.length - 3} more...
+                            </li>
+                        )}
+                      </ul>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>

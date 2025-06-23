@@ -18,9 +18,10 @@ import { ModeToggle } from "@/components/shared/ModeToggle";
 import { useEffect, useState } from 'react';
 import '../journal-theme.css'; 
 import { getProjectById } from "@/services/projectService";
+import { getMemoryZoneById } from "@/services/memoryZoneService";
 import { useAuth } from "@clerk/clerk-react";
 import { useSupabase } from "@/contexts/SupabaseContext";
-import type { Project, Profile, JournalEntry } from "@/types/supabase";
+import type { Project, MemoryZone } from "@/types/supabase";
 import StreakManagement from "@/components/journal/StreakManagement";
 import { Button } from "@/components/ui/Button";
 
@@ -38,10 +39,13 @@ function JournalLayout() {
   const routerState = useRouterState();
   const [projectName, setProjectName] = useState<string | null>(null);
   const [isLoadingProjectName, setIsLoadingProjectName] = useState(false);
+  const [memoryZoneName, setMemoryZoneName] = useState<string | null>(null);
+  const [isLoadingMemoryZoneName, setIsLoadingMemoryZoneName] = useState(false);
 
-  const [userProfileData, setUserProfileData] = useState<Profile | null>(null);
-  const [journalEntriesData, setJournalEntriesData] = useState<JournalEntry[]>([]);
-  const [isLoadingProfileAndEntries, setIsLoadingProfileAndEntries] = useState(false);
+  // This local state is no longer needed as StreakManagement handles its own data
+  // const [userProfileData, setUserProfileData] = useState<Profile | null>(null);
+  // const [journalEntriesData, setJournalEntriesData] = useState<JournalEntry[]>([]);
+  // const [isLoadingProfileAndEntries, setIsLoadingProfileAndEntries] = useState(false);
   const [showStreakModalViaButton, setShowStreakModalViaButton] = useState(false);
 
   // const currentUserId = useMemo(() => session?.user.id, [session]);
@@ -60,9 +64,13 @@ function JournalLayout() {
   // those params would typically be accessed within the component for that specific child route.
   // However, routerState.location.pathname can give us the full path.
   let projectId: string | null = null;
+  let memoryZoneId: string | null = null;
   const pathParts = routerState.location.pathname.split('/');
   if (pathParts.length >= 4 && pathParts[1] === 'journal' && pathParts[2] === 'project' && pathParts[3]) {
     projectId = pathParts[3];
+  }
+  if (pathParts.length >= 4 && pathParts[1] === 'journal' && pathParts[2] === 'memory-zone' && pathParts[3]) {
+    memoryZoneId = pathParts[3];
   }
 
   useEffect(() => {
@@ -101,56 +109,27 @@ function JournalLayout() {
   }, [projectId, supabase]);
 
   useEffect(() => {
-    if (supabase && currentUserId) {
-      setIsLoadingProfileAndEntries(true);
-      const fetchProfile = async () => {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", currentUserId)
-          .single();
-        if (error) {
-          console.error("Error fetching profile:", error);
-          setUserProfileData(null); // Set to null on error
-          return null;
-        }
-        return data;
-      };
-
-      const fetchEntries = async () => {
-        const { data, error } = await supabase
-          .from("journal_entries")
-          .select("*")
-          .eq("user_id", currentUserId)
-          .order("created_at", { ascending: false }); 
-        if (error) {
-          console.error("Error fetching journal entries:", error);
-          setJournalEntriesData([]); // Set to empty array on error
-          return [];
-        }
-        return data || [];
-      };
-
-      Promise.all([fetchProfile(), fetchEntries()])
-        .then(([profile, entries]) => {
-          setUserProfileData(profile);
-          setJournalEntriesData(entries || []);
+    if (memoryZoneId && supabase) {
+      setIsLoadingMemoryZoneName(true);
+      getMemoryZoneById(supabase, memoryZoneId)
+        .then((zone: MemoryZone | null) => {
+          if (zone) {
+            setMemoryZoneName(zone.title);
+          } else {
+            setMemoryZoneName(null);
+          }
         })
-        // Catching potential errors from Promise.all if one of the fetches fails critically
         .catch(error => {
-          console.error("Error in Promise.all for profile/entries:", error);
-          setUserProfileData(null);
-          setJournalEntriesData([]);
+          console.error("Error fetching memory zone name for breadcrumb:", error);
+          setMemoryZoneName(null);
         })
         .finally(() => {
-          setIsLoadingProfileAndEntries(false);
+          setIsLoadingMemoryZoneName(false);
         });
     } else {
-      setUserProfileData(null);
-      setJournalEntriesData([]);
-      setIsLoadingProfileAndEntries(false); 
+      setMemoryZoneName(null);
     }
-  }, [supabase, currentUserId]);
+  }, [memoryZoneId, supabase]);
 
   const getBreadcrumbPath = () => {
     const path = routerState.location.pathname;
@@ -169,6 +148,27 @@ function JournalLayout() {
               {isLoadingProjectName ? "Loading..." : projectName || "Project Details"}
             </BreadcrumbPage>
           </BreadcrumbItem>
+        </>
+      );
+    } else if (path.startsWith("/journal/memory-zone")) {
+      const isDetailsPage = path.split('/').filter(p => p).length > 2;
+      return (
+        <>
+          <BreadcrumbItem>
+            <BreadcrumbLink asChild className="text-[#2f2569] dark:text-white interactive">
+              <Link to="/journal/memory-zone">Memory Zones</Link>
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          {isDetailsPage && (
+            <>
+              <BreadcrumbSeparator className="hidden md:block text-[#2f2569]/50 dark:text-white/50" />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="text-[#2f2569] dark:text-white">
+                  {isLoadingMemoryZoneName ? "Loading..." : memoryZoneName || "Zone Details"}
+                </BreadcrumbPage>
+              </BreadcrumbItem>
+            </>
+          )}
         </>
       );
     } else if (path === "/journal/diary") {
@@ -201,7 +201,7 @@ function JournalLayout() {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset className="bg-white dark:bg-transparent font-mono">
+      <SidebarInset className="bg-white dark:bg-transparent font-mono min-w-0">
         <header className="flex h-16 items-center gap-2 rounded-t-lg">
           <div className="flex items-center justify-between w-full px-4">
             <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ function JournalLayout() {
                 variant="outline"
                 size="sm" // Making button a bit smaller to fit nicely
                 onClick={() => setShowStreakModalViaButton(true)}
-                disabled={isLoadingProfileAndEntries || !userProfileData}
+                // disabled={isLoadingProfileAndEntries || !userProfileData} // No longer needed
                 className="text-[#2f2569] dark:text-white border-[#2f2569]/50 dark:border-white/50 hover:bg-[#2f2569]/5 dark:hover:bg-white/5"
               >
                 View Streak
@@ -242,12 +242,10 @@ function JournalLayout() {
           <Outlet />
         </main>
         {/* Render StreakManagement if data is available */}
-        {supabase && currentUserId && userProfileData && !isLoadingProfileAndEntries && (
+        {supabase && currentUserId && (
           <StreakManagement
             supabase={supabase}
             userId={currentUserId}
-            userProfile={userProfileData}
-            journalEntries={journalEntriesData}
             externallyTriggeredOpen={showStreakModalViaButton}
             onClose={() => setShowStreakModalViaButton(false)}
           />

@@ -1,6 +1,5 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
-import { JournalEntry, Tag, Project } from "@/types/supabase";
-import debounce from "lodash/debounce";
+import { useState, useEffect, useCallback, forwardRef, useRef } from "react";
+import { JournalEntry, Tag, Project, MediaAttachment } from "@/types/supabase";
 import type { TodoItem as TodoItemType } from "@/types/supabase";
 import {
   getTagsByUserId,
@@ -9,14 +8,15 @@ import {
 } from "@/services/tagService";
 import { SupabaseClient } from "@supabase/supabase-js";
 import {
-  createMediaAttachment,
   getMediaAttachmentsByEntryId,
-  deleteMediaAttachment,
+  createMediaAttachments,
+  deleteMediaAttachments,
 } from "@/services/mediaAttachmentService";
-import { getPublicUrl, deleteFiles } from "@/services/storageService";
+import { getPublicUrl } from "@/services/storageService";
 import "@blocknote/core/fonts/inter.css";
 import "@blocknote/mantine/style.css";
 import { useCreateBlockNote } from "@blocknote/react";
+import { codeBlock } from "@blocknote/code-block";
 import {
   PartialBlock,
   Block,
@@ -44,17 +44,12 @@ import "@blocknote/xl-ai/style.css";
 import DiaryHeader from "./detail/DiaryHeader";
 import DiaryEditor from "./detail/DiaryEditor";
 import DiaryModals from "./detail/DiaryModals";
-import {
-  FacebookProvider,
-  useFacebook,
-  useShare,
-} from "react-facebook";
 import { generateJournalImage } from "@/services/imageGenerationService";
-import {
-  createFacebookShare,
-  deleteFacebookShare,
-  updateFacebookShare,
-} from "@/services/facebookShareService";
+import { createFacebookShare } from "@/services/facebookShareService";
+import { createLinkedInShare } from "@/services/linkedInShareService";
+import { useDebouncedCallback } from "use-debounce";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -62,6 +57,7 @@ interface DiaryDetailViewProps {
   onDeleteDiary: (diaryIdToDelete: string) => Promise<void>;
   userId: string;
   supabase: SupabaseClient;
+  hasUnlimitedAccess: boolean;
 }
 
 const defaultInitialBlocks: PartialBlock[] = [
@@ -69,14 +65,14 @@ const defaultInitialBlocks: PartialBlock[] = [
 ];
 const defaultInitialContentString = JSON.stringify(defaultInitialBlocks);
 
-const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
+const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   diary,
   onUpdateDiary,
   onDeleteDiary,
   userId,
   supabase,
-}) => {
-  const { init: initFacebookSdk, isLoading: isFbSdkLoading } = useFacebook();
+  hasUnlimitedAccess,
+}, ref) => {
   const [editableTitle, setEditableTitle] = useState(diary.title || "");
   const [currentEditorContentString, setCurrentEditorContentString] = useState<
     string | undefined
@@ -96,6 +92,11 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
     diary.updated_at ? new Date(diary.updated_at) : null
   );
   const [isDeleteConfirmVisible, setIsDeleteConfirmVisible] = useState(false);
+  const [isShareConfirmVisible, setIsShareConfirmVisible] = useState(false);
+  const [sharePlatform, setSharePlatform] = useState<"facebook" | "linkedin" | null>(null);
+  const [sharePreviewImageUri, setSharePreviewImageUri] = useState<
+    string | null
+  >(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const [isVideoModalVisible, setIsVideoModalVisible] = useState(false);
@@ -103,14 +104,8 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
 
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
-  const [isSharePreviewModalVisible, setIsSharePreviewModalVisible] =
-    useState(false);
-  const [sharePreviewImageUrl, setSharePreviewImageUrl] = useState<
-    string | null
-  >(null);
-  const [currentShareRecordId, setCurrentShareRecordId] = useState<
-    string | null
-  >(null);
+
+  const [imageCount, setImageCount] = useState(0);
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -141,58 +136,10 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
     return new File([blob], fileName, { type: mimeString });
   };
 
-  const handleFileUploadCallback = useCallback(
-    async (file: File): Promise<string> => {
-      if (!supabase || !userId || !diary || !diary.id) {
-        console.error(
-          "Supabase client, userId, or diaryId not available for file upload."
-        );
-        throw new Error(
-          "Upload context not ready. Ensure the diary entry is loaded."
-        );
-      }
-
-      const fileExtension = file.name.split(".").pop();
-      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
-
-      const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) {
-        console.error("Error uploading file to Supabase Storage:", error);
-        throw new Error(`Storage upload failed: ${error.message}`);
-      }
-
-      if (!data || !data.path) {
-        console.error(
-          "Upload successful but path is missing in response data."
-        );
-        throw new Error("Storage upload failed: path missing in response.");
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(data.path);
-
-      if (!publicUrlData?.publicUrl) {
-        console.error("Error getting public URL for uploaded file:", data.path);
-        throw new Error(
-          "Failed to get public URL. File uploaded but cannot be displayed."
-        );
-      }
-      return publicUrlData.publicUrl;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [supabase, userId, diary?.id, BUCKET_NAME]
-  );
+  const handleFileUploadCallbackRef = useRef<((file: File) => Promise<string>) | null>(null);
 
   const client = createBlockNoteAIClient({
-    apiKey: "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",
+    apiKey: import.meta.env.BLOCKNOTE_AI_SERVER_API_KEY,
     baseURL: "https://api.groq.com/openai/v1/chat/completions",
   });
 
@@ -267,6 +214,8 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
   });
   
   const editor = useCreateBlockNote({
+    schema,
+    codeBlock,
     dictionary: {
       ...en,
       ai: aiEn,
@@ -277,9 +226,85 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
     ],
-    schema,
-    uploadFile: handleFileUploadCallback,
+    uploadFile: (file) => {
+      if (handleFileUploadCallbackRef.current) {
+        return handleFileUploadCallbackRef.current(file);
+      }
+      return Promise.reject("File upload handler not ready.");
+    },
   });
+
+  const handleFileUploadCallback = useCallback(
+    async (file: File): Promise<string> => {
+      if (!supabase || !userId || !diary || !diary.id || !editor) {
+        console.error(
+          "Supabase client, userId, or diaryId not available for file upload."
+        );
+        throw new Error(
+          "Upload context not ready. Ensure the diary entry is loaded."
+        );
+      }
+
+      const currentContent = editor.document;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(currentContent as any);
+
+      if (!hasUnlimitedAccess && imageUrls.length > 3) {
+        const errorMessage = "Free users are limited to 3 media attachments per diary. Please upgrade for unlimited attachments.";
+        throw new Error(errorMessage);
+      }
+
+      const fileExtension = file.name.split(".").pop();
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
+
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Error uploading file to Supabase Storage:", error);
+        throw new Error(`Storage upload failed: ${error.message}`);
+      }
+
+      if (!data || !data.path) {
+        console.error(
+          "Upload successful but path is missing in response data."
+        );
+        throw new Error("Storage upload failed: path missing in response.");
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(data.path);
+
+      if (!publicUrlData?.publicUrl) {
+        console.error("Error getting public URL for uploaded file:", data.path);
+        throw new Error(
+          "Failed to get public URL. File uploaded but cannot be displayed."
+        );
+      }
+      return publicUrlData.publicUrl;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [supabase, userId, diary.id, hasUnlimitedAccess, editor, BUCKET_NAME]
+  );
+  
+  useEffect(() => {
+    handleFileUploadCallbackRef.current = handleFileUploadCallback;
+  }, [handleFileUploadCallback]);
+
+  useEffect(() => {
+    if (editor?.document) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(editor.document as any);
+      setImageCount(imageUrls.length);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEditorContentString, editor]);
 
   useEffect(() => {
     const fetchTagsAndProjects = async () => {
@@ -371,6 +396,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
     setCurrentVideoUrl(null);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractImageUrlsFromBN = (blocks: Block[]): string[] => {
     let urls: string[] = [];
     for (const block of blocks) {
@@ -378,7 +404,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         urls.push(block.props.url);
       }
       if (block.children && Array.isArray(block.children)) {
-        urls = urls.concat(extractImageUrlsFromBN(block.children as Block[]));
+        urls = urls.concat(extractImageUrlsFromBN(block.children));
       }
     }
     return urls;
@@ -387,15 +413,17 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
   const handleSave = useCallback(
     async (
       currentTitle: string,
-      currentContentString?: string,
+      _currentContentString?: string,
       tagIdsForSave?: string[],
       moodToSave?: string | undefined | null,
       projectToSaveId?: string | null | undefined
     ) => {
-      if (!diary.id || !userId || !supabase) {
-        console.error("Cannot save, diary ID or user ID is missing.");
+      if (!diary.id || !userId || !supabase || !editor) {
+        console.error("Cannot save, diary ID, user ID, or editor is missing.");
         return;
       }
+
+      const currentContentForSave = JSON.stringify(editor.document);
 
       setIsSaving(true);
       setHasUnsavedChanges(false);
@@ -417,9 +445,9 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
           await updateEntryTags(supabase, userId, diary.id, tagsToUpdate);
         }
 
-        if (currentContentString && diary.id) {
+        if (currentContentForSave && diary.id) {
           const parsedBlocks: Block<typeof schema.blockSchema>[] =
-            JSON.parse(currentContentString);
+            JSON.parse(currentContentForSave);
 
           try {
             const editorTodoBlocks = parsedBlocks.filter(
@@ -507,128 +535,64 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
           }
 
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const currentEditorImageUrls = extractImageUrlsFromBN(
-              parsedBlocks as unknown as Block[]
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              parsedBlocks as any
             );
-
             const existingAttachments = await getMediaAttachmentsByEntryId(
               supabase,
               diary.id
             );
-            const rawBucketBasePublicUrl = getPublicUrl(
-              supabase,
-              BUCKET_NAME,
-              ""
+            const existingAttachmentUrls = existingAttachments.map(
+              (att) => att.file_url_cached
             );
-            const bucketBasePublicUrl = rawBucketBasePublicUrl
-              ? rawBucketBasePublicUrl.replace(/\/$/, "")
-              : undefined;
-
-            if (!bucketBasePublicUrl) {
-              console.error(
-                "Could not determine bucket base public URL. Skipping media sync."
-              );
-            } else {
-              for (const attachment of existingAttachments) {
-                if (
-                  !currentEditorImageUrls.includes(attachment.file_url_cached)
-                ) {
-                  try {
-                    const relativePathToDelete = attachment.file_path;
-
-                    console.log(
-                      `Attempting to delete attachment. DB ID: ${attachment.id}, Storage Path: ${relativePathToDelete}`
-                    );
-
-                    if (relativePathToDelete) {
-                      const success = await deleteFiles(supabase, BUCKET_NAME, [
-                        relativePathToDelete,
-                      ]);
-                      if (success) {
-                        console.log(
-                          `Successfully deleted file from storage: ${relativePathToDelete}`
-                        );
-                      } else {
-                        console.warn(
-                          `Storage deletion call returned false for path: ${relativePathToDelete}. The file may have already been deleted.`
-                        );
-                      }
-                    }
-                    await deleteMediaAttachment(supabase, attachment.id!);
-                    console.log(
-                      `Deleted attachment record from database for path: ${attachment.file_url_cached}`
-                    );
-                  } catch (deleteError) {
-                    console.error(
-                      `Error deleting attachment or file for ${attachment.file_url_cached}:`,
-                      deleteError
-                    );
-                  }
-                }
+    
+            // Handle Deletions
+            const attachmentsToDelete = existingAttachments.filter(
+              (att) => !currentEditorImageUrls.includes(att.file_url_cached)
+            );
+    
+            if (attachmentsToDelete.length > 0) {
+              const attachmentIdsToDelete = attachmentsToDelete
+                .map((att) => att.id)
+                .filter((id): id is string => !!id);
+    
+              // The trigger on media_attachments should handle deleting from storage.
+              if (attachmentIdsToDelete.length > 0) {
+                await deleteMediaAttachments(supabase, attachmentIdsToDelete);
               }
-
-              const refreshedExistingAttachments =
-                await getMediaAttachmentsByEntryId(supabase, diary.id);
-              const refreshedExistingAttachmentUrls =
-                refreshedExistingAttachments.map((att) => att.file_url_cached);
-
-              for (const imageUrl of currentEditorImageUrls) {
-                if (!refreshedExistingAttachmentUrls.includes(imageUrl)) {
+            }
+    
+            // Handle Creations
+            const newImageUrls = currentEditorImageUrls.filter(
+              (url) => !existingAttachmentUrls.includes(url)
+            );
+    
+            if (newImageUrls.length > 0) {
+              const rawBucketBasePublicUrl = getPublicUrl(supabase, BUCKET_NAME, "");
+              const bucketBasePublicUrl = rawBucketBasePublicUrl
+                ? rawBucketBasePublicUrl.replace(/\/$/, "")
+                : "";
+      
+              if (bucketBasePublicUrl) {
+                const newAttachmentsData: Partial<MediaAttachment>[] = [];
+                for (const imageUrl of newImageUrls) {
                   if (imageUrl.startsWith(bucketBasePublicUrl + "/")) {
                     const relativeFilePath = imageUrl.substring(
                       bucketBasePublicUrl.length + 1
                     );
-                    let fileSize = -1;
                     const fileNameOriginal = relativeFilePath.substring(
                       relativeFilePath.lastIndexOf("/") + 1
                     );
-
-                    try {
-                      const response = await fetch(imageUrl, {
-                        method: "HEAD",
-                        cache: "no-store",
-                      });
-                      if (response.ok) {
-                        const contentLength =
-                          response.headers.get("Content-Length");
-                        if (contentLength)
-                          fileSize = parseInt(contentLength, 10);
-                        else
-                          console.warn(
-                            `Content-Length header missing for ${imageUrl}`
-                          );
-                      } else {
-                        console.warn(
-                          `HEAD request failed for ${imageUrl}: ${response.status}`
-                        );
-                      }
-                    } catch (headError) {
-                      console.warn(
-                        `Failed to fetch image size for ${imageUrl}:`,
-                        headError
-                      );
-                    }
-
+                    const extension = fileNameOriginal.split(".").pop()?.toLowerCase() || "";
                     let mimeType = "application/octet-stream";
-                    const extension = fileNameOriginal
-                      .split(".")
-                      .pop()
-                      ?.toLowerCase();
-                    if (extension) {
-                      if (extension === "jpg" || extension === "jpeg")
-                        mimeType = "image/jpeg";
-                      else if (extension === "png") mimeType = "image/png";
-                      else if (extension === "gif") mimeType = "image/gif";
-                      else if (extension === "webp") mimeType = "image/webp";
-                    }
-
-                    if (fileSize === -1) {
-                      console.warn(
-                        `Could not determine file size for ${imageUrl}. Storing as -1.`
-                      );
-                    }
-
-                    await createMediaAttachment(supabase, {
+                    if (["jpg", "jpeg"].includes(extension)) mimeType = "image/jpeg";
+                    else if (extension === "png") mimeType = "image/png";
+                    else if (extension === "gif") mimeType = "image/gif";
+                    else if (extension === "webp") mimeType = "image/webp";
+      
+                    newAttachmentsData.push({
                       entry_id: diary.id,
                       user_id: userId,
                       file_path: relativeFilePath,
@@ -636,14 +600,13 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
                       file_name_original: fileNameOriginal,
                       file_type: "image",
                       mime_type: mimeType,
-                      file_size_bytes: fileSize,
+                      file_size_bytes: -1, // Note: Size detection removed for simplicity
                     });
-                    console.log(`Created attachment for URL: ${imageUrl}`);
-                  } else {
-                    console.log(
-                      `Skipping non-Supabase storage URL: ${imageUrl}`
-                    );
                   }
+                }
+      
+                if (newAttachmentsData.length > 0) {
+                  await createMediaAttachments(supabase, newAttachmentsData);
                 }
               }
             }
@@ -657,7 +620,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
 
         const coreUpdates: Partial<JournalEntry> = {
           title: currentTitle,
-          content: currentContentString || defaultInitialContentString,
+          content: currentContentForSave || defaultInitialContentString,
           is_draft: false,
           updated_at: new Date().toISOString(),
           manual_mood_label: moodToSave === null ? undefined : moodToSave,
@@ -667,8 +630,8 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
 
         setLastSaved(new Date());
         setInitialLoadedTagIds([...tagsToUpdate]);
-        if (currentContentString !== undefined) {
-          setInitialDiaryContentString(currentContentString);
+        if (currentContentForSave !== undefined) {
+          setInitialDiaryContentString(currentContentForSave);
         }
         setInitialMoodLabel(moodToSave);
         setInitialProjectId(projectToSaveId);
@@ -689,12 +652,11 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
       initialLoadedTagIds,
       selectedTagIds,
       BUCKET_NAME,
+      editor,
     ]
   );
 
-  const debouncedSave = useMemo(
-    () =>
-      debounce(
+  const debouncedSave = useDebouncedCallback(
         (
           newTitle: string,
           newContentString?: string,
@@ -711,9 +673,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
           );
         },
         2000
-      ),
-    [handleSave]
-  );
+      );
 
   useEffect(() => {
     setEditableTitle(diary.title || "");
@@ -768,6 +728,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
     return () => {
       debouncedSave.cancel();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editableTitle,
     currentEditorContentString,
@@ -806,42 +767,52 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
     setIsDeleteConfirmVisible(false);
   };
 
-  const handleCancelAndCleanupShare = async () => {
-    const recordIdToDel = currentShareRecordId;
+  const handleShareConfirmCancel = () => {
+    setIsShareConfirmVisible(false);
+    setSharePreviewImageUri(null);
+    setSharePlatform(null);
+  };
 
-    // Reset state immediately for better UX
-    setIsSharePreviewModalVisible(false);
-    setSharePreviewImageUrl(null);
-    setCurrentShareRecordId(null);
-
-    if (recordIdToDel) {
-      try {
-        await deleteFacebookShare(supabase, recordIdToDel);
-        console.log("Successfully deleted share record from DB.");
-      } catch (error) {
-        console.error("Failed to delete share record from DB.", error);
-      }
+  const showShareConfirm = async (platform: "facebook" | "linkedin") => {
+    setIsSharing(true);
+    setShareError(null);
+    setSharePlatform(platform);
+    try {
+      const tagsForImage = availableTags.filter((tag) =>
+        selectedTagIds.includes(tag.id!)
+      );
+      const imageDataUri = await generateJournalImage(diary, tagsForImage);
+      setSharePreviewImageUri(imageDataUri);
+      setIsShareConfirmVisible(true);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setShareError(
+        message || "An unexpected error occurred while generating the preview."
+      );
+    } finally {
+      setIsSharing(false);
     }
   };
 
-  const proceedWithShareGeneration = useCallback(async () => {
-    if (!diary.id || !userId || !supabase) {
-      console.error("Cannot generate share, missing context.");
-      setShareError("An unexpected error occurred. Missing context.");
+  const canAddAttachments = hasUnlimitedAccess || imageCount < 3;
+
+  const handleShareConfirmOk = async () => {
+    if (!diary.id || !userId || !supabase || !sharePreviewImageUri || !sharePlatform) {
+      console.error("Cannot generate share, missing context or preview image.");
+      setShareError(
+        "An unexpected error occurred. Missing context or preview image."
+      );
       return;
     }
 
     setIsSharing(true);
     setShareError(null);
+    setIsShareConfirmVisible(false);
 
     try {
-      const tagsForImage = availableTags.filter((tag) =>
-        selectedTagIds.includes(tag.id!)
-      );
-
-      const imageDataUri = await generateJournalImage(diary, tagsForImage);
+      // Image already generated, now upload
       const imageFile = dataURItoFile(
-        imageDataUri,
+        sharePreviewImageUri,
         `share-image-${diary.id}.png`
       );
 
@@ -852,7 +823,7 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         .from(SHARE_IMAGE_BUCKET_NAME)
         .upload(filePath, imageFile, {
           contentType: "image/png",
-          cacheControl: "0",
+          cacheControl: "3600",
           upsert: false,
         });
 
@@ -869,134 +840,53 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         throw new Error("Failed to get public URL for share image.");
       }
 
-      const newShareRecord = await createFacebookShare(supabase, {
-        user_id: userId,
-        journal_entry_id: diary.id!,
-        preview_image_path: filePath,
-        preview_image_url_cached: imageUrl,
-        share_link_used: imageUrl,
-        share_caption: diary.title || "A new entry from my BeanJournal!",
-      });
+      const tagNames = availableTags
+        .filter((t) => selectedTagIds.includes(t.id!))
+        .map((t) => `#${t.name}`)
+        .join(" ");
 
-      if (!newShareRecord || !newShareRecord.id) {
-        throw new Error("Failed to create share record in database.");
+      if (sharePlatform === "facebook") {
+        await createFacebookShare(supabase, {
+          user_id: userId,
+          journal_entry_id: diary.id,
+          preview_image_path: filePath,
+          preview_image_url_cached: imageUrl,
+        });
+  
+        const quote = `Check out my journal! ${tagNames}`;
+        const hashtag = encodeURIComponent("#BeanJournal");
+        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+          imageUrl
+        )}&quote=${encodeURIComponent(quote)}&hashtag=${hashtag}`;
+        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
+
+      } else if (sharePlatform === "linkedin") {
+        await createLinkedInShare(supabase, {
+          user_id: userId,
+          journal_entry_id: diary.id,
+          preview_image_path: filePath,
+          preview_image_url_cached: imageUrl,
+        });
+
+        const title = diary.title || 'My Journal Entry';
+        const summary = `Check out my journal! ${tagNames}`;
+        const source = 'Bean Journal';
+        const linkedInShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(imageUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(summary)}&source=${encodeURIComponent(source)}`;
+        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
       }
 
-      setCurrentShareRecordId(newShareRecord.id);
-      setSharePreviewImageUrl(imageUrl);
-      setIsSharePreviewModalVisible(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setShareError(message || "An unexpected error occurred during sharing.");
     } finally {
       setIsSharing(false);
-    }
-  }, [
-    diary,
-    userId,
-    supabase,
-    availableTags,
-    selectedTagIds,
-    SHARE_IMAGE_BUCKET_NAME,
-  ]);
-
-  const handleGenerateSharePreview = useCallback(async () => {
-    if (isFbSdkLoading) {
-      setShareError("Facebook SDK is loading. Please try again in a moment.");
-      return;
-    }
-
-    if (!diary.id) {
-      console.error("Journal Entry ID is missing.");
-      setShareError("Cannot share: Entry ID is missing.");
-      return;
-    }
-
-    const api = await initFacebookSdk();
-    if (!api) {
-      setShareError("Failed to initialize Facebook SDK.");
-      return;
-    }
-
-    try {
-      const response = await api.getLoginStatus();
-      if (response.status === "connected") {
-        await proceedWithShareGeneration();
-      } else {
-        const loginResponse = await api.login({
-          scope: "public_profile",
-        });
-        if (loginResponse.status === "connected") {
-          await proceedWithShareGeneration();
-        } else {
-          setShareError(
-            "Facebook login is required to share. Please try again."
-          );
-        }
-      }
-    } catch (error) {
-      console.error("Facebook login or status check failed:", error);
-      setShareError("Failed to connect to Facebook. Please try again.");
-    }
-  }, [
-    isFbSdkLoading,
-    diary.id,
-    initFacebookSdk,
-    proceedWithShareGeneration,
-    setShareError,
-  ]);
-
-  const { share, isLoading } = useShare();
-  const handleShareToFacebook = async () => {
-    try {
-      const response = (await share({
-        href: sharePreviewImageUrl!,
-        display: "iframe",
-      })) as { post_id?: string } | null;
-
-      // The share dialog on desktop can return an empty object on success,
-      // while on mobile it might return a post_id. On cancellation, it
-      // often returns null. So, we'll treat any object response as a success.
-      if (response) {
-        if (response.post_id) {
-          console.log("Successfully shared with post_id:", response.post_id);
-          if (currentShareRecordId) {
-            try {
-              await updateFacebookShare(supabase, currentShareRecordId, {
-                facebook_post_id: response.post_id,
-              });
-              console.log("Share record updated with post_id.");
-            } catch (error) {
-              console.error(
-                "Failed to update share record with post_id",
-                error
-              );
-            }
-          }
-        } else {
-          console.log(
-            "Share dialog closed. Assuming success without a post_id."
-          );
-        }
-
-        // On any success, close the modal and reset state.
-        setIsSharePreviewModalVisible(false);
-        setSharePreviewImageUrl(null);
-        setCurrentShareRecordId(null);
-      } else {
-        // This case handles cancellation from the Facebook dialog (response is null).
-        console.log("Share cancelled from FB dialog.");
-        // We leave the modal open, allowing the user to either try sharing again
-        // or to click our "Cancel" button, which cleans up the share record.
-      }
-    } catch (error) {
-      console.error("An error occurred during the share process:", error);
-      setShareError("An error occurred during sharing. Please try again.");
+      setSharePreviewImageUri(null);
+      setSharePlatform(null);
     }
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg flex flex-col">
+    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col">
       <DiaryHeader
         diary={diary}
         editableTitle={editableTitle}
@@ -1015,19 +905,39 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         isSaving={isSaving}
         hasUnsavedChanges={hasUnsavedChanges}
         showDeleteConfirm={showDeleteConfirm}
-        onShareToFacebook={handleGenerateSharePreview}
+        onShareToFacebook={() => showShareConfirm("facebook")}
+        onShareToLinkedIn={() => showShareConfirm("linkedin")}
         isSharing={isSharing}
       />
 
-      {shareError && (
-        <div
-          className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mx-4 my-2"
-          role="alert"
-        >
-          <p className="font-bold">Sharing Error</p>
-          <p>{shareError}</p>
-        </div>
-      )}
+      <div className="mx-4 my-2 flex justify-between items-center">
+        {shareError && (
+          <div
+            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
+            role="alert"
+          >
+            <p className="font-bold">Sharing Error</p>
+            <p>{shareError}</p>
+          </div>
+        )}
+
+        {!canAddAttachments && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center text-yellow-600">
+                  <Info className="h-5 w-5 mr-2" />
+                  <span className="font-semibold">Attachment limit reached</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Free users can only add up to 3 attachments.</p>
+                <p>Please upgrade for unlimited attachments.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       <DiaryEditor
         editor={editor}
@@ -1044,59 +954,16 @@ const DiaryDetailViewContent: React.FC<DiaryDetailViewProps> = ({
         isVideoModalVisible={isVideoModalVisible}
         currentVideoUrl={currentVideoUrl}
         handleVideoModalCancel={handleVideoModalCancel}
+        isShareConfirmVisible={isShareConfirmVisible}
+        handleShareConfirmOk={handleShareConfirmOk}
+        handleShareConfirmCancel={handleShareConfirmCancel}
+        sharePreviewImageUri={sharePreviewImageUri}
+        sharePlatform={sharePlatform}
       />
-      {isSharePreviewModalVisible && (
-        <div className="fixed inset-0 z-50 bg-gray-900 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center p-4">
-          <div className="relative p-5 border shadow-lg rounded-lg bg-white w-full max-w-4xl max-h-[80vh] flex flex-col">
-            <h3 className="text-2xl font-bold mb-4 text-gray-800">
-              Share Preview
-            </h3>
-            <div className="flex-grow mb-4 flex items-center justify-center bg-gray-100 rounded-md overflow-hidden">
-              {sharePreviewImageUrl ? (
-                <img
-                  src={sharePreviewImageUrl}
-                  alt="Share preview"
-                  className="max-w-full max-h-full object-contain"
-                />
-              ) : (
-                <div className="text-gray-500">Generating preview...</div>
-              )}
-            </div>
-            <div className="flex justify-end space-x-4 flex-shrink-0">
-              <button
-                onClick={handleCancelAndCleanupShare}
-                className="px-5 py-2 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleShareToFacebook}
-                disabled={isLoading}
-                className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                {isLoading ? "Sharing..." : "Share to Facebook"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
-};
+});
 
-// NOTE: The main logic has been moved to DiaryDetailViewContent above.
-// This allows us to wrap the component with FacebookProvider and use the
-// useFacebook hook inside DiaryDetailViewContent.
-// You will need to set up a Facebook App and add the App ID to your
-// environment variables.
-const DiaryDetailView: React.FC<DiaryDetailViewProps> = (props) => {
-  return (
-    <FacebookProvider
-      appId={import.meta.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID"}
-    >
-      <DiaryDetailViewContent {...props} />
-    </FacebookProvider>
-  );
-};
+DiaryDetailView.displayName = "DiaryDetailView";
 
 export default DiaryDetailView;

@@ -27,6 +27,7 @@ import {
   updateTodoItem,
   deleteTodoItem,
 } from "@/services/todoItemService";
+import { TodoPageSkeleton } from "@/components/skeletons/TodoPageSkeleton";
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -220,6 +221,10 @@ const TodoPage = () => {
     );
   }
 
+  if (isLoading) {
+    return <TodoPageSkeleton />;
+  }
+
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col text-gray-800 bg-gradient-to-b from-[#E4EFE7] to-white dark:text-gray-200 dark:bg-slate-900 p-4 sm:p-6 lg:p-8">
       {/* Main Content (No Sidebar) */}
@@ -280,13 +285,12 @@ const TodoPage = () => {
               </Button>
             </div>
 
-            {isLoading && <p className="text-center text-gray-500 dark:text-gray-400">Loading tasks...</p>}
-            {!isLoading && tasks.filter(task => !task.is_completed).length === 0 && (
+            {tasks.filter(task => !task.is_completed).length === 0 && (
                  <p className="text-gray-500 dark:text-gray-400 text-center py-4">No pending tasks. Add some!</p>
             )}
 
             {/* Pending Tasks */}
-            {!isLoading && tasks.filter(task => !task.is_completed).length > 0 && (
+            {tasks.filter(task => !task.is_completed).length > 0 && (
               <div>
                 <h3 className={`text-xl font-semibold mb-4 ${primaryButtonText} dark:text-gray-200`}>Today's Tasks</h3>
                 <ul className="space-y-3">
@@ -401,7 +405,7 @@ const TodoPage = () => {
             )}
 
             {/* Completed Tasks */}
-            {!isLoading && tasks.filter(task => task.is_completed).length > 0 && (
+            {tasks.filter(task => task.is_completed).length > 0 && (
                 <div>
                     <h3 className={`text-xl font-semibold mb-4 mt-8 ${primaryButtonText} dark:text-gray-200`}>Completed</h3>
                     <ul className="space-y-3">
