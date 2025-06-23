@@ -18,15 +18,11 @@ steps:
       - '[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"' # This loads nvm bash_completion
       - nvm install node # Installs the latest version of Node.js
       - nvm use node
-      - node -v
-      - npm -v
       - corepack enable pnpm
       - echo "$ENVI" | sudo tee .env > /dev/null
-      - pnpm install --no-frozen-lockfile
-      - pnpm add @mantine/core
-      - pnpm add uuid
-      - pnpm build
       - ls
+      - pnpm install --no-frozen-lockfile
+      - pnpm build
   - name: Deploy FE
     image: bash # Using the official bash Docker image
     environment:
