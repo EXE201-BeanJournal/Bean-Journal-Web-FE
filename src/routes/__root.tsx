@@ -1,44 +1,81 @@
-import { createRootRoute, Outlet, useRouterState } from "@tanstack/react-router";
-//import { ModeToggle } from "@/components/shared/ModeToggle";
-//import { TanStackRouterDevtools } from "@tanstack/router-devtools";
+import {
+  createRootRoute,
+  Outlet,
+  useRouterState,
+  HeadContent,
+} from "@tanstack/react-router";
 import { ClerkAndThemeProvider } from "../main";
 import { NotFoundPageContent } from "./__404";
 import { useEffect } from "react";
 import { useAuthProtection } from "@/utils/authUtils";
 
 export const Route = createRootRoute({
+  head: () => ({
+    title:
+      "Bean Journal – Your Journal, Amplified: AI Video & Productivity Tools",
+    meta: [
+      {
+        name: "description",
+        content:
+          "Go beyond traditional journaling. Transform entries and images into dynamic videos with AI, while seamlessly managing tasks and tracking your progress.",
+      },
+      {
+        name: "keywords",
+        content:
+          "digital journaling, AI video creation, productivity tools, mood tracking, journal entries, task management",
+      },
+      {
+        property: "og:title",
+        content: "Bean Journal – Your Journal, Amplified",
+      },
+      {
+        property: "og:description",
+        content:
+          "Transform your journaling experience with AI-powered video creation and productivity tools.",
+      },
+      {
+        property: "og:type",
+        content: "website",
+      },
+    ],
+    links: [
+      {
+        rel: "canonical",
+        href: "https://beanjournal.site",
+      },
+    ],
+  }),
   component: LandingRoot,
   notFoundComponent: NotFoundPageContent,
 });
 
 function LandingRoot() {
   const { location } = useRouterState();
-  
-  // Explicitly scroll to top on route change
+
+  // Scroll to top instantly on every pathname change
   useEffect(() => {
-    // Try targeting documentElement and window, ensuring instant scroll
-    document.documentElement.scrollTo({ top: 0, behavior: 'instant' }); 
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    document.documentElement.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: 0, behavior: "instant" });
   }, [location.pathname]);
 
   return (
     <ClerkAndThemeProvider>
       <AuthProtector />
-      <div className={`min-h-screen`}>
-        {/* Main content area that will receive themes */}
-        <main id="app-theme-wrapper">
-          <Outlet />
-        </main>
-        
-        {/* Footer - Conditionally rendered */}
-        {/* <TanStackRouterDevtools /> */}
-      </div>
+      <>
+        <HeadContent />
+        <div className="min-h-screen">
+          <main id="app-theme-wrapper">
+            <Outlet />
+          </main>
+          {/* <TanStackRouterDevtools /> */}
+        </div>
+      </>
     </ClerkAndThemeProvider>
   );
 }
 
-// Separate component to use the auth hook inside the Clerk context
+// Uses the auth hook within Clerk context
 function AuthProtector() {
   useAuthProtection();
   return null;
-} 
+}
