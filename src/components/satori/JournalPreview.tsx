@@ -41,31 +41,6 @@ type Block = {
 
 type GroupedBlock = Block | { type: 'bulletList' | 'numberedList'; items: Block[] };
 
-// Helper to fetch image and convert to Data URI
-const toDataURL = async (url: string): Promise<string | null> => {
-  if (!url) {
-    console.log("toDataURL was called with an empty URL. Skipping fetch.");
-    return null;
-  }
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.error(`Failed to fetch image: ${response.statusText}`);
-      return null;
-    }
-    const blob = await response.blob();
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onloadend = () => resolve(reader.result as string);
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
-  } catch (error) {
-    console.error(`Failed to fetch and process image from ${url}:`, error);
-    return null;
-  }
-};
-
 // Updated async function to extract content and embed the image
 // eslint-disable-next-line react-refresh/only-export-components
 export const extractFirstImageAndContent = async (content: string): Promise<{ imageUrl: string | null; remainingBlocks: Block[] }> => {
@@ -78,19 +53,11 @@ export const extractFirstImageAndContent = async (content: string): Promise<{ im
       return { imageUrl: null, remainingBlocks: [] };
     }
 
-    let imageUrl: string | null = null;
-    const remainingBlocks: Block[] = [];
-    let imageFound = false;
+    // Filter out all image blocks
+    const remainingBlocks = parsedBlocks.filter(block => block.type !== 'image');
 
-    for (const block of parsedBlocks) {
-      if (!imageFound && block.type === 'image' && block.props.url) {
-        imageUrl = await toDataURL(block.props.url); // Embed image
-        imageFound = true; 
-      } else {
-        remainingBlocks.push(block);
-      }
-    }
-    return { imageUrl, remainingBlocks };
+    // No image will be returned
+    return { imageUrl: null, remainingBlocks };
   } catch (e) {
     console.error("Failed to parse journal content:", e);
     return { imageUrl: null, remainingBlocks: [] };
@@ -209,43 +176,47 @@ const renderBlock = (block: GroupedBlock, index: number): React.ReactNode => {
       );
     case "bulletList":
       return (
-        <ul key={index} style={{ margin: '0 0 16px 20px', padding: 0 }}>
+        <div key={index} style={{ display: 'flex', flexDirection: 'column', margin: '0 0 16px 20px', padding: 0 }}>
             {(block as { items: Block[] }).items.map((item, itemIndex) => renderBlock(item, itemIndex))}
-        </ul>
+        </div>
       );
     case "numberedList":
         return (
-            <ol key={index} style={{ margin: '0 0 16px 20px', padding: 0 }}>
+            <div key={index} style={{ display: 'flex', flexDirection: 'column', margin: '0 0 16px 20px', padding: 0 }}>
                 {(block as { items: Block[] }).items.map((item, itemIndex) => renderBlock(item, itemIndex))}
-            </ol>
+            </div>
         );
     case "bulletListItem":
       return (
-        <li
+        <div
           key={index}
           style={{
+            display: 'flex',
             fontSize: "20px",
             lineHeight: 1.6,
             color: "#34495e",
             marginBottom: "8px",
           }}
         >
-          {renderInlineContent(blockAsBlock.content as InlineContent[])}
-        </li>
+          <span style={{ marginRight: '10px' }}>•</span>
+          <div>{renderInlineContent(blockAsBlock.content as InlineContent[])}</div>
+        </div>
       );
     case "numberedListItem":
       return (
-        <li
+        <div
           key={index}
           style={{
+            display: 'flex',
             fontSize: "20px",
             lineHeight: 1.6,
             color: "#34495e",
             marginBottom: "8px",
           }}
         >
-          {renderInlineContent(blockAsBlock.content as InlineContent[])}
-        </li>
+          <span style={{ marginRight: '10px' }}>{index + 1}.</span>
+          <div>{renderInlineContent(blockAsBlock.content as InlineContent[])}</div>
+        </div>
       );
     case "todo":
       return (
@@ -313,10 +284,13 @@ const renderBlock = (block: GroupedBlock, index: number): React.ReactNode => {
         <div
           key={index}
           style={{
-            display: "table",
+            display: "flex",
+            flexDirection: 'column',
             width: "100%",
             borderCollapse: "collapse",
             margin: "16px 0",
+            border: "1px solid #bdc3c7",
+            borderRadius: '4px'
           }}
         >
           {tableContent.rows.map((row, rowIndex) =>
@@ -327,7 +301,7 @@ const renderBlock = (block: GroupedBlock, index: number): React.ReactNode => {
     }
     case "tableRow":
       return (
-        <div key={index} style={{ display: "table-row" }}>
+        <div key={index} style={{ display: "flex", flexDirection: "row", borderBottom: '1px solid #bdc3c7' }}>
           {blockAsBlock.children.map((cell, cellIndex) =>
             renderBlock(cell, cellIndex)
           )}
@@ -338,13 +312,14 @@ const renderBlock = (block: GroupedBlock, index: number): React.ReactNode => {
         <div
           key={index}
           style={{
-            display: "table-cell",
-            border: "1px solid #bdc3c7",
+            display: "flex",
+            flex: 1,
+            borderRight: '1px solid #bdc3c7',
             padding: "12px",
             verticalAlign: "top",
           }}
         >
-          {renderInlineContent(blockAsBlock.content as InlineContent[])}
+          <div style={{ display: 'flex' }}>{renderInlineContent(blockAsBlock.content as InlineContent[])}</div>
         </div>
       );
     case "quote":
@@ -386,7 +361,6 @@ const renderBlock = (block: GroupedBlock, index: number): React.ReactNode => {
 interface JournalPreviewProps {
   entry: JournalEntry;
   tags: SupabaseTag[];
-  imageUrl: string | null;
   remainingBlocks: Block[];
 }
 
@@ -400,11 +374,14 @@ const hexToRgba = (hex: string, alpha: number): string => {
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-const JournalPreview: React.FC<JournalPreviewProps> = ({ entry, tags, imageUrl, remainingBlocks }) => {
+const JournalPreview: React.FC<JournalPreviewProps> = ({ entry, tags, remainingBlocks }) => {
   const title = entry.title || "Untitled Journal";
   
   const renderContent = (content: Block[]) => {
-    // ... function implementation
+    const CONTENT_LIMIT = 3;
+    const truncatedContent = content.slice(0, CONTENT_LIMIT);
+    const wasTruncated = content.length > CONTENT_LIMIT;
+    
     const groupBlocks = (blocks: Block[]): GroupedBlock[] => {
       const grouped: GroupedBlock[] = [];
       let currentList: { type: 'bulletList' | 'numberedList'; items: Block[] } | null = null;
@@ -436,11 +413,18 @@ const JournalPreview: React.FC<JournalPreviewProps> = ({ entry, tags, imageUrl, 
       return grouped;
     };
 
-    const groupedContent = groupBlocks(content);
+    const groupedContent = groupBlocks(truncatedContent);
 
     return (
       <div style={{ display: 'flex', flexDirection: 'column' }}>
         {groupedContent.map((block, index) => renderBlock(block, index))}
+        {wasTruncated && (
+            <p style={{
+                fontSize: "20px",
+                color: "#adb5bd",
+                marginTop: '16px'
+            }}>...</p>
+        )}
       </div>
     );
   };
@@ -448,87 +432,67 @@ const JournalPreview: React.FC<JournalPreviewProps> = ({ entry, tags, imageUrl, 
   return (
     <div
       style={{
-        height: "100%",
-        width: "100%",
         display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        backgroundColor: "#f8f9fa",
-        fontFamily: '"Inter", sans-serif',
-        padding: "40px",
-        border: "1px solid #dee2e6",
+        flexDirection: 'column',
+        width: "100%",
+        height: "100%",
+        backgroundColor: "white",
         borderRadius: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+        overflow: "hidden",
+        padding: '40px',
+        fontFamily: '"Inter", sans-serif',
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          width: "100%",
-          height: "100%",
-          backgroundColor: "white",
-          borderRadius: "8px",
-          boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-          overflow: "hidden",
-        }}
-      >
-        {/* Left column for image or content */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 50%', padding: '40px', borderRight: '1px solid #e9ecef', justifyContent: 'center' }}>
-          {imageUrl ? (
-            <img src={imageUrl} alt="Journal" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
-          ) : (
-            renderContent(remainingBlocks)
-          )}
+      <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflowY: 'auto' }}>
+        <h1 style={{ fontSize: "42px", fontWeight: 700, color: "#212529", margin: "0 0 16px", lineHeight: 1.2 }}>
+          {title}
+        </h1>
+        <div style={{ fontSize: "22px", color: "#495057", marginBottom: "24px" }}>
+          {new Date(entry.entry_timestamp || Date.now()).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
         </div>
 
-        {/* Right column for title, date, and tags */}
-        <div style={{ display: 'flex', flexDirection: 'column', flex: '1 1 50%', padding: '40px', justifyContent: 'center' }}>
-          <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <h1 style={{ fontSize: "42px", fontWeight: 700, color: "#212529", margin: "0 0 16px", lineHeight: 1.2 }}>
-              {title}
-            </h1>
-            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', maxHeight: '280px', color: "#555" }}>
-              <div style={{ fontSize: "22px", color: "#495057", marginBottom: "24px" }}>
-                {new Date(entry.entry_timestamp || Date.now()).toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'long',
-                  day: 'numeric',
-                })}
-              </div>
-              {tags.length > 0 && (
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "auto" }}>
-                  {tags.map((tag) => (
-                    <span
-                      key={tag.id}
-                      style={{
-                        backgroundColor: hexToRgba(tag.color_hex || "#6c757d", 0.15),
-                        color: tag.color_hex || "#495057",
-                        padding: "6px 14px",
-                        borderRadius: "16px",
-                        fontSize: "18px",
-                        fontWeight: 500,
-                        border: `1px solid ${hexToRgba(tag.color_hex || "#6c757d", 0.3)}`,
-                      }}
-                    >
-                      {tag.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {renderContent(remainingBlocks)}
         </div>
+        
+        {tags.length > 0 && (
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "24px" }}>
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                style={{
+                  backgroundColor: hexToRgba(tag.color_hex || "#6c757d", 0.15),
+                  color: tag.color_hex || "#495057",
+                  padding: "6px 14px",
+                  borderRadius: "16px",
+                  fontSize: "18px",
+                  fontWeight: 500,
+                  border: `1px solid ${hexToRgba(tag.color_hex || "#6c757d", 0.3)}`,
+                }}
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
-      <p
-        style={{
-          marginTop: "20px",
-          fontSize: "18px",
-          color: "#adb5bd",
-          textAlign: "center",
-        }}
-      >
-        Powered by Bean Journal
-      </p>
+      
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', flexGrow: 1 }}>
+        <p
+          style={{
+            marginTop: "20px",
+            fontSize: "18px",
+            color: "#adb5bd",
+          }}
+        >
+          Powered by Bean Journal
+        </p>
+      </div>
     </div>
   );
 };
