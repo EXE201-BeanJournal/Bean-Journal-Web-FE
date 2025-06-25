@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/Button";
 import { Combobox } from "@/components/ui/combobox";
 import { FaFacebookF, FaLinkedinIn, FaTrash } from "react-icons/fa";
 import { Loader2 } from "lucide-react";
-import MoodSelector from "./MoodSelector";
 
 interface DiaryFooterProps {
     selectedTagIds: string[];
@@ -14,8 +13,6 @@ interface DiaryFooterProps {
     setSelectedProjectId: (id: string | null) => void;
     availableProjects: Project[];
     isLoadingProjects: boolean;
-    currentSelectedMood: string | null | undefined;
-    setCurrentSelectedMood: (mood: string | null) => void;
     showDeleteConfirm: () => void;
     onShareToFacebook: () => void;
     onShareToLinkedIn: () => void;
@@ -31,8 +28,6 @@ interface DiaryFooterProps {
     setSelectedProjectId,
     availableProjects,
     isLoadingProjects,
-    currentSelectedMood,
-    setCurrentSelectedMood,
     showDeleteConfirm,
     onShareToFacebook,
     onShareToLinkedIn,
@@ -53,17 +48,9 @@ interface DiaryFooterProps {
 
     return (
         <div className="bg-gray-50 border-t border-gray-200 px-4 py-3 sm:px-6 shadow-t-lg sticky bottom-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-            {/* Mood Selector */}
-            <div className="flex items-center justify-center md:justify-start">
-              <MoodSelector
-                selectedMood={currentSelectedMood}
-                onSelectMood={setCurrentSelectedMood}
-              />
-            </div>
-    
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
             {/* Tags and Project */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="md:col-span-3 flex flex-col sm:flex-row items-center md:justify-start gap-4">
               <div className="w-full sm:w-auto">
                 <Combobox
                     options={tagOptions}

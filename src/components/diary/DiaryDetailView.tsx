@@ -51,6 +51,7 @@ import { createLinkedInShare } from "@/services/linkedInShareService";
 import { useDebouncedCallback } from "use-debounce";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
+import MoodSelector from "./detail/MoodSelector";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -907,12 +908,20 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           )}
         </div>
 
-        <DiaryEditor
-          editor={editor}
-          setCurrentEditorContentString={setCurrentEditorContentString}
-          insertAlert={insertAlert}
-          insertTodo={insertTodo}
-        />
+        <div className="relative">
+          <DiaryEditor
+            editor={editor}
+            setCurrentEditorContentString={setCurrentEditorContentString}
+            insertAlert={insertAlert}
+            insertTodo={insertTodo}
+          />
+          <div className="absolute top-4 right-4 z-10">
+            <MoodSelector
+              selectedMood={currentSelectedMood}
+              onSelectMood={setCurrentSelectedMood}
+            />
+          </div>
+        </div>
       </div>
 
       <DiaryFooter
@@ -924,8 +933,6 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         setSelectedProjectId={setSelectedProjectId}
         availableProjects={availableProjects}
         isLoadingProjects={isLoadingProjects}
-        currentSelectedMood={currentSelectedMood}
-        setCurrentSelectedMood={setCurrentSelectedMood}
         showDeleteConfirm={showDeleteConfirm}
         onShareToFacebook={() => showShareConfirm("facebook")}
         onShareToLinkedIn={() => showShareConfirm("linkedin")}

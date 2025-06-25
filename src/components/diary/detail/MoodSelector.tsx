@@ -1,3 +1,8 @@
+import React from 'react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/Button';
+import { Smile } from 'lucide-react';
+
 export type Mood = "amazing" | "happy" | "neutral" | "sad" | "mad";
 
 interface MoodSelectorProps {
@@ -44,33 +49,42 @@ const moodOptions: {
 ];
 
 const MoodSelector = ({ selectedMood, onSelectMood }: MoodSelectorProps) => {
-  return (
-    <div className="flex items-center space-x-2">
-      <div className="flex flex-wrap gap-2">
-        {moodOptions.map(({ name, imagePath, bgColor, textColor }) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => onSelectMood(selectedMood === name ? null : name)}
-            className={`
-              flex flex-col items-center justify-center p-1 rounded-lg shadow-sm 
-              transition-all duration-150 ease-in-out w-14
-              ${bgColor} ${textColor}
-              ${
-                selectedMood === name
-                  ? "ring-2 ring-offset-1 ring-indigo-500 scale-105"
-                  : "hover:opacity-80 hover:scale-105"
-              }
-              focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-400
-            `}
-          >
-            <img src={imagePath} alt={name} className="w-8 h-8" />
-            <span className="text-xs font-medium">{name.toLowerCase()}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
+    const [isOpen, setIsOpen] = React.useState(false);
+
+    const selectedOption = moodOptions.find(o => o.name === selectedMood);
+  
+    const handleSelect = (name: Mood) => {
+      onSelectMood(selectedMood === name ? null : name);
+      setIsOpen(false);
+    };
+  
+    return (
+      <Popover open={isOpen} onOpenChange={setIsOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" className="rounded-full w-10 h-10 bg-white/80 backdrop-blur-sm hover:bg-white">
+            {selectedOption ? (
+              <img src={selectedOption.imagePath} alt={selectedOption.name} className="w-10 h-10" />
+            ) : (
+              <Smile className="w-5 h-5 text-slate-500" />
+            )}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0">
+          <div className="flex flex-col gap-1 p-2">
+            {moodOptions.map(option => (
+              <button
+                key={option.name}
+                onClick={() => handleSelect(option.name)}
+                className={`flex items-center gap-3 p-2 rounded-md transition-colors w-full text-left hover:bg-slate-100 ${option.textColor} ${selectedMood === option.name ? option.bgColor : ''}`}
+              >
+                <img src={option.imagePath} alt={option.name} className="w-6 h-6" />
+                <span className="font-medium text-sm capitalize">{option.name}</span>
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
+    );
 };
 
 export default MoodSelector; 
