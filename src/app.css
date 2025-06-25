@@ -207,4 +207,9 @@
    border-color: #475569 !important; /* Slate-600 for general borders */
 }
 
-/* You'll need to inspect ShadCN components and see which CSS variables or utility classes they use for backgrounds, text, borders, etc., and override them within each theme block if the default contrast is poor. */ 
+/* You'll need to inspect ShadCN components and see which CSS variables or utility classes they use for backgrounds, text, borders, etc., and override them within each theme block if the default contrast is poor. */
+
+/* Custom styles for DiaryEditor */
+.diary-editor-transparent .bn-editor {
+  background: transparent !important;
+} 

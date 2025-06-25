@@ -52,6 +52,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Info } from "lucide-react";
 import MoodSelector from "./detail/MoodSelector";
+import MoodBackground from "./detail/MoodBackground";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -62,9 +63,7 @@ interface DiaryDetailViewProps {
   hasUnlimitedAccess: boolean;
 }
 
-const defaultInitialBlocks: PartialBlock[] = [
-  { type: "paragraph", content: "" },
-];
+const defaultInitialBlocks: PartialBlock[] = Array(13).fill({ type: "paragraph", content: "" });
 const defaultInitialContentString = JSON.stringify(defaultInitialBlocks);
 
 const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
@@ -997,7 +996,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       />
 
       <div className="flex-grow overflow-y-auto">
-        <div className="mx-4 my-2 flex justify-between items-center">
+        <div className="mx-4 flex justify-between items-center">
           {shareError && (
             <div
               className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
@@ -1027,6 +1026,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         </div>
 
         <div className="relative">
+          <MoodBackground mood={currentSelectedMood} />
           <DiaryEditor
             editor={editor}
             setCurrentEditorContentString={setCurrentEditorContentString}
