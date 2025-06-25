@@ -1,5 +1,7 @@
 import React from "react";
 import { Modal as AntModal } from "antd";
+import { FaFacebook, FaLinkedin } from "react-icons/fa";
+import { FiAlertTriangle } from "react-icons/fi";
 
 interface DiaryModalsProps {
   isDeleteConfirmVisible: boolean;
@@ -37,6 +39,16 @@ const DiaryModals: React.FC<DiaryModalsProps> = ({
       ? "LinkedIn"
       : "";
 
+  const PlatformIcon =
+    sharePlatform === "facebook"
+      ? FaFacebook
+      : sharePlatform === "linkedin"
+      ? FaLinkedin
+      : null;
+
+  const platformColor =
+    sharePlatform === "facebook" ? "text-blue-600" : "text-blue-800";
+
   return (
     <>
       {currentVideoUrl && (
@@ -60,40 +72,68 @@ const DiaryModals: React.FC<DiaryModalsProps> = ({
       )}
 
       <AntModal
-        title="Confirm Deletion"
+        title={
+          <div className="flex items-center gap-3">
+            <FiAlertTriangle className="w-6 h-6 text-red-500" />
+            <span className="font-semibold text-xl text-gray-800">
+              Confirm Deletion
+            </span>
+          </div>
+        }
         open={isDeleteConfirmVisible}
         onOk={handleDeleteConfirmOk}
         onCancel={handleDeleteConfirmCancel}
         okText="Delete"
-        okButtonProps={{ danger: true }}
+        okButtonProps={{ danger: true, className: "bg-red-500 hover:bg-red-600" }}
         cancelText="Cancel"
       >
-        <p>
-          Are you sure you want to delete this diary entry titled "{diaryTitle}"?
-          This action cannot be undone.
-        </p>
+        <div className="py-4">
+          <p className="text-base text-gray-700">
+            Are you sure you want to delete this diary entry titled{" "}
+            <strong className="font-medium text-gray-900">"{diaryTitle}"</strong>?
+          </p>
+          <div className="mt-4 bg-red-50 border-l-4 border-red-400 p-3 rounded-r-lg">
+            <p className="text-sm font-semibold text-red-700">
+              This action is permanent and cannot be undone.
+            </p>
+          </div>
+        </div>
       </AntModal>
 
       <AntModal
-        title={`Confirm Share to ${platformName}`}
+        title={
+          <div className="flex items-center gap-3">
+            {PlatformIcon && <PlatformIcon className={`w-6 h-6 ${platformColor}`} />}
+            <span className="font-semibold text-xl text-gray-800">
+              Share to {platformName}
+            </span>
+          </div>
+        }
         open={isShareConfirmVisible}
         onOk={handleShareConfirmOk}
         onCancel={handleShareConfirmCancel}
-        okText="Share"
+        okText="Yes, share it!"
         cancelText="Cancel"
         width={600}
+        okButtonProps={{ className: "bg-blue-500 hover:bg-blue-600" }}
       >
-        <div className="space-y-4">
-          <p>
-            You are about to share a preview of this journal entry to your{" "}
-            {platformName} timeline. Does this look right?
+        <div className="py-4">
+          <p className="text-lg text-gray-700">
+            A preview of your journal entry will be shared on your{" "}
+            <strong className={`font-semibold ${platformColor}`}>
+              {platformName}
+            </strong>{" "}
+            timeline.
+          </p>
+          <p className="text-sm text-gray-500 mt-1">
+            Please confirm the preview below looks correct.
           </p>
           {sharePreviewImageUri && (
-            <div className="border rounded-lg p-2 bg-gray-50">
+            <div className="mt-4 border-2 border-dashed border-gray-200 rounded-lg p-2 bg-gray-50 shadow-inner">
               <img
                 src={sharePreviewImageUri}
                 alt="Journal entry share preview"
-                className="w-full h-auto rounded"
+                className="w-full h-auto rounded-md"
               />
             </div>
           )}

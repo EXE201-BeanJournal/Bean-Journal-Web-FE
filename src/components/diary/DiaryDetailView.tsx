@@ -804,21 +804,20 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       );
       return;
     }
-
+  
     setIsSharing(true);
     setShareError(null);
     setIsShareConfirmVisible(false);
-
+  
     try {
-      // Image already generated, now upload
       const imageFile = dataURItoFile(
         sharePreviewImageUri,
         `share-image-${diary.id}.png`
       );
-
+  
       const uniqueFileName = `${uuidv4()}.png`;
       const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
-
+  
       const { error: uploadError } = await supabase.storage
         .from(SHARE_IMAGE_BUCKET_NAME)
         .upload(filePath, imageFile, {
@@ -826,11 +825,11 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           cacheControl: "3600",
           upsert: false,
         });
-
+  
       if (uploadError) {
-        throw new Error("Failed to upload share image.");
+        throw new Error(`Failed to upload share image: ${uploadError.message}`);
       }
-
+  
       const imageUrl = getPublicUrl(
         supabase,
         SHARE_IMAGE_BUCKET_NAME,
@@ -839,12 +838,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       if (!imageUrl) {
         throw new Error("Failed to get public URL for share image.");
       }
-
-      const tagNames = availableTags
-        .filter((t) => selectedTagIds.includes(t.id!))
-        .map((t) => `#${t.name}`)
-        .join(" ");
-
+  
+      // Now that we have the imageUrl, save the share record
       if (sharePlatform === "facebook") {
         await createFacebookShare(supabase, {
           user_id: userId,
@@ -852,14 +847,6 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           preview_image_path: filePath,
           preview_image_url_cached: imageUrl,
         });
-  
-        const quote = `Check out my journal! ${tagNames}`;
-        const hashtag = encodeURIComponent("#BeanJournal");
-        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-          imageUrl
-        )}&quote=${encodeURIComponent(quote)}&hashtag=${hashtag}`;
-        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
-
       } else if (sharePlatform === "linkedin") {
         await createLinkedInShare(supabase, {
           user_id: userId,
@@ -867,14 +854,25 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           preview_image_path: filePath,
           preview_image_url_cached: imageUrl,
         });
+      }
+  
+      const pageToShareUrl = `https://esmuwiclbmirvjhwolrh.supabase.co/functions/v1/share-page/${diary.id}`;
+      
+      if (sharePlatform === "facebook") {
+        const hashtag = encodeURIComponent("https://beanjournal.site");
+        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
+          pageToShareUrl
+        )}&hashtag=${hashtag}`;
+        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
 
+      } else if (sharePlatform === "linkedin") {
         const title = diary.title || 'My Journal Entry';
-        const summary = `Check out my journal! ${tagNames}`;
+        const summary = `Check out my journal on https://beanjournal.site! #BeanJournal`;
         const source = 'Bean Journal';
         const linkedInShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(imageUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(summary)}&source=${encodeURIComponent(source)}`;
         window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
       }
-
+  
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setShareError(message || "An unexpected error occurred during sharing.");
