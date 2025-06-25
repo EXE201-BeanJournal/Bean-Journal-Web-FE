@@ -44,6 +44,7 @@ import "@blocknote/xl-ai/style.css";
 import DiaryHeader from "./detail/DiaryHeader";
 import DiaryEditor from "./detail/DiaryEditor";
 import DiaryModals from "./detail/DiaryModals";
+import DiaryFooter from "./detail/DiaryFooter";
 import { generateJournalImage } from "@/services/imageGenerationService";
 import { createFacebookShare } from "@/services/facebookShareService";
 import { createLinkedInShare } from "@/services/linkedInShareService";
@@ -856,23 +857,6 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         });
       }
   
-      const pageToShareUrl = `https://esmuwiclbmirvjhwolrh.supabase.co/functions/v1/share-page/${diary.id}`;
-      
-      if (sharePlatform === "facebook") {
-        const hashtag = encodeURIComponent("https://beanjournal.site");
-        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-          pageToShareUrl
-        )}&hashtag=${hashtag}`;
-        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
-
-      } else if (sharePlatform === "linkedin") {
-        const title = diary.title || 'My Journal Entry';
-        const summary = `Check out my journal on https://beanjournal.site! #BeanJournal`;
-        const source = 'Bean Journal';
-        const linkedInShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(imageUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(summary)}&source=${encodeURIComponent(source)}`;
-        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
-      }
-  
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setShareError(message || "An unexpected error occurred during sharing.");
@@ -884,11 +868,54 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   };
 
   return (
-    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col">
+    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col h-full max-h-screen">
       <DiaryHeader
-        diary={diary}
         editableTitle={editableTitle}
         setEditableTitle={setEditableTitle}
+        lastSaved={lastSaved}
+        isSaving={isSaving}
+        hasUnsavedChanges={hasUnsavedChanges}
+      />
+
+      <div className="flex-grow overflow-y-auto">
+        <div className="mx-4 my-2 flex justify-between items-center">
+          {shareError && (
+            <div
+              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
+              role="alert"
+            >
+              <p className="font-bold">Sharing Error</p>
+              <p>{shareError}</p>
+            </div>
+          )}
+
+          {!canAddAttachments && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center text-yellow-600">
+                    <Info className="h-5 w-5 mr-2" />
+                    <span className="font-semibold">Attachment limit reached</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Free users can only add up to 3 attachments.</p>
+                  <p>Please upgrade for unlimited attachments.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+
+        <DiaryEditor
+          editor={editor}
+          setCurrentEditorContentString={setCurrentEditorContentString}
+          insertAlert={insertAlert}
+          insertTodo={insertTodo}
+        />
+      </div>
+
+      <DiaryFooter
         selectedTagIds={selectedTagIds}
         setSelectedTagIds={setSelectedTagIds}
         availableTags={availableTags}
@@ -899,49 +926,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         isLoadingProjects={isLoadingProjects}
         currentSelectedMood={currentSelectedMood}
         setCurrentSelectedMood={setCurrentSelectedMood}
-        lastSaved={lastSaved}
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
         showDeleteConfirm={showDeleteConfirm}
         onShareToFacebook={() => showShareConfirm("facebook")}
         onShareToLinkedIn={() => showShareConfirm("linkedin")}
         isSharing={isSharing}
-      />
-
-      <div className="mx-4 my-2 flex justify-between items-center">
-        {shareError && (
-          <div
-            className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
-            role="alert"
-          >
-            <p className="font-bold">Sharing Error</p>
-            <p>{shareError}</p>
-          </div>
-        )}
-
-        {!canAddAttachments && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex items-center text-yellow-600">
-                  <Info className="h-5 w-5 mr-2" />
-                  <span className="font-semibold">Attachment limit reached</span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Free users can only add up to 3 attachments.</p>
-                <p>Please upgrade for unlimited attachments.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-
-      <DiaryEditor
-        editor={editor}
-        setCurrentEditorContentString={setCurrentEditorContentString}
-        insertAlert={insertAlert}
-        insertTodo={insertTodo}
       />
 
       <DiaryModals
