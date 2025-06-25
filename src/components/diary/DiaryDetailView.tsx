@@ -123,6 +123,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   >(diary.project_id);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
 
+  const [moodAnalysisResult, setMoodAnalysisResult] = useState<string | null>(null);
+  const [isAnalyzingMood, setIsAnalyzingMood] = useState<boolean>(false);
+  const [moodAnalysisError, setMoodAnalysisError] = useState<string | null>(null);
+
   const BUCKET_NAME = "media-attachments";
   const SHARE_IMAGE_BUCKET_NAME = "shared-previews";
 
@@ -225,7 +229,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     extensions: [
       createAIExtension({
         model: model,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
     ],
     uploadFile: (file) => {
@@ -338,7 +342,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       }
     };
     fetchTagsAndProjects();
-  }, [userId, supabase, diary.id]);
+  }, [diary.id, supabase, userId]);
 
   useEffect(() => {
     if (!editor || !diary) return;
@@ -383,7 +387,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
 
     setInitialDiaryContentString(contentStrToStore);
     setCurrentEditorContentString(contentStrToStore);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diary?.id, diary?.content, editor]);
 
   useEffect(() => {
@@ -730,7 +734,6 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     return () => {
       debouncedSave.cancel();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     editableTitle,
     currentEditorContentString,
@@ -868,6 +871,115 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     }
   };
 
+  const getEditorContentAsText = useCallback(async (): Promise<string> => {
+    if (!editor) {
+      return "";
+    }
+    return await editor.blocksToMarkdownLossy(editor.document);
+  }, [editor]);
+
+  const parseInsight = (insight: string): string => {
+    try {
+      const data = JSON.parse(insight);
+  
+      if (Array.isArray(data.steps)) {
+        const toolOutputStep = [...data.steps].reverse().find(step => step.type === 'tool_output');
+        if (toolOutputStep && typeof toolOutputStep.content === 'string') {
+          // Extract the number from the string "The sentiment score for the entry is X."
+          const match = toolOutputStep.content.match(/\d+/);
+          if (match) {
+            return match[0];
+          }
+          return toolOutputStep.content;
+        }
+      }
+  
+      if (typeof data.answer === 'string') {
+        try {
+          const nestedData = JSON.parse(data.answer);
+          if (nestedData && typeof nestedData.finalAnswerPrompt === 'string') {
+            return nestedData.finalAnswerPrompt;
+          }
+        } catch (e) {
+          return data.answer;
+        }
+      }
+      
+      return JSON.stringify(data, null, 2);
+    } catch (error) {
+      return insight;
+    }
+  }
+
+  const handleAnalyzeMood = async () => {
+    setIsAnalyzingMood(true);
+    setMoodAnalysisError(null);
+  
+    const journalEntryText = await getEditorContentAsText();
+    if (!journalEntryText.trim()) {
+      setMoodAnalysisError("Journal is empty, cannot analyze mood.");
+      setIsAnalyzingMood(false);
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:3008/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: `Analyze the sentiment of this journal entry: "${journalEntryText}"`,
+          stream: false,
+          dev: true,
+        }),
+      });
+  
+      const responseText = await response.text();
+  
+      if (!response.ok) {
+        try {
+          const errorJson = JSON.parse(responseText);
+          throw new Error(errorJson.message || responseText);
+        } catch (e) {
+          throw new Error(responseText || `HTTP error! status: ${response.status}`);
+        }
+      }
+  
+      const parsedResult = parseInsight(responseText);
+      setMoodAnalysisResult(parsedResult);
+  
+    } catch (err) {
+      if (err instanceof Error) {
+        setMoodAnalysisError(err.message);
+      } else {
+        setMoodAnalysisError("An unexpected error occurred.");
+      }
+      setMoodAnalysisResult(null);
+    } finally {
+      setIsAnalyzingMood(false);
+    }
+  };
+
+  useEffect(() => {
+    const mapScoreToMoodValue = (score: string | null): string | null => {
+      if (!score) return null;
+      switch (score) {
+        case "1": return "mad";
+        case "2": return "sad";
+        case "3": return "neutral";
+        case "4": return "happy";
+        case "5": return "amazing";
+        default: return null;
+      }
+    };
+
+    const moodValue = mapScoreToMoodValue(moodAnalysisResult);
+    if (moodValue) {
+      setCurrentSelectedMood(moodValue);
+    }
+  }, [moodAnalysisResult]);
+
   return (
     <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col h-full max-h-screen">
       <DiaryHeader
@@ -876,6 +988,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         lastSaved={lastSaved}
         isSaving={isSaving}
         hasUnsavedChanges={hasUnsavedChanges}
+        onAnalyzeMood={handleAnalyzeMood}
+        isAnalyzingMood={isAnalyzingMood}
+        moodAnalysisResult={moodAnalysisResult}
+        moodAnalysisError={moodAnalysisError}
       />
 
       <div className="flex-grow overflow-y-auto">
