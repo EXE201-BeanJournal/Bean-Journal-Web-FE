@@ -416,6 +416,95 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     return urls;
   };
 
+  const getEditorContentAsText = useCallback(async (): Promise<string> => {
+    if (!editor) {
+      return "";
+    }
+    return await editor.blocksToMarkdownLossy(editor.document);
+  }, [editor]);
+
+  const handleAnalyzeMood = useCallback(async () => {
+    setIsAnalyzingMood(true);
+    setMoodAnalysisError(null);
+  
+    const journalEntryText = await getEditorContentAsText();
+    if (!journalEntryText.trim()) {
+      setIsAnalyzingMood(false);
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:3008/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: `Analyze the sentiment of this journal entry: "${journalEntryText}"`,
+          stream: false,
+          dev: true,
+        }),
+      });
+  
+      const responseText = await response.text();
+  
+      if (!response.ok) {
+        try {
+          const errorJson = JSON.parse(responseText);
+          throw new Error(errorJson.message || responseText);
+        } catch (e) {
+          throw new Error(responseText || `HTTP error! status: ${response.status}`);
+        }
+      }
+  
+      const parsedResult = parseInsight(responseText);
+      setMoodAnalysisResult(parsedResult);
+  
+    } catch (err) {
+      if (err instanceof Error) {
+        setMoodAnalysisError(err.message);
+      } else {
+        setMoodAnalysisError("An unexpected error occurred.");
+      }
+      setMoodAnalysisResult(null);
+    } finally {
+      setIsAnalyzingMood(false);
+    }
+  }, [getEditorContentAsText]);
+
+  const parseInsight = (insight: string): string => {
+    try {
+      const data = JSON.parse(insight);
+  
+      if (Array.isArray(data.steps)) {
+        const toolOutputStep = [...data.steps].reverse().find(step => step.type === 'tool_output');
+        if (toolOutputStep && typeof toolOutputStep.content === 'string') {
+          // Extract the number from the string "The sentiment score for the entry is X."
+          const match = toolOutputStep.content.match(/\d+/);
+          if (match) {
+            return match[0];
+          }
+          return toolOutputStep.content;
+        }
+      }
+  
+      if (typeof data.answer === 'string') {
+        try {
+          const nestedData = JSON.parse(data.answer);
+          if (nestedData && typeof nestedData.finalAnswerPrompt === 'string') {
+            return nestedData.finalAnswerPrompt;
+          }
+        } catch (e) {
+          return data.answer;
+        }
+      }
+      
+      return JSON.stringify(data, null, 2);
+    } catch (error) {
+      return insight;
+    }
+  }
+
   const handleSave = useCallback(
     async (
       currentTitle: string,
@@ -642,6 +731,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         setInitialMoodLabel(moodToSave);
         setInitialProjectId(projectToSaveId);
         setHasUnsavedChanges(false);
+
+        // handleAnalyzeMood();
       } catch (error) {
         console.error("Error saving diary:", error);
         setHasUnsavedChanges(true);
@@ -659,6 +750,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       selectedTagIds,
       BUCKET_NAME,
       editor,
+      // handleAnalyzeMood,
     ]
   );
 
@@ -868,96 +960,6 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       setIsSharing(false);
       setSharePreviewImageUri(null);
       setSharePlatform(null);
-    }
-  };
-
-  const getEditorContentAsText = useCallback(async (): Promise<string> => {
-    if (!editor) {
-      return "";
-    }
-    return await editor.blocksToMarkdownLossy(editor.document);
-  }, [editor]);
-
-  const parseInsight = (insight: string): string => {
-    try {
-      const data = JSON.parse(insight);
-  
-      if (Array.isArray(data.steps)) {
-        const toolOutputStep = [...data.steps].reverse().find(step => step.type === 'tool_output');
-        if (toolOutputStep && typeof toolOutputStep.content === 'string') {
-          // Extract the number from the string "The sentiment score for the entry is X."
-          const match = toolOutputStep.content.match(/\d+/);
-          if (match) {
-            return match[0];
-          }
-          return toolOutputStep.content;
-        }
-      }
-  
-      if (typeof data.answer === 'string') {
-        try {
-          const nestedData = JSON.parse(data.answer);
-          if (nestedData && typeof nestedData.finalAnswerPrompt === 'string') {
-            return nestedData.finalAnswerPrompt;
-          }
-        } catch (e) {
-          return data.answer;
-        }
-      }
-      
-      return JSON.stringify(data, null, 2);
-    } catch (error) {
-      return insight;
-    }
-  }
-
-  const handleAnalyzeMood = async () => {
-    setIsAnalyzingMood(true);
-    setMoodAnalysisError(null);
-  
-    const journalEntryText = await getEditorContentAsText();
-    if (!journalEntryText.trim()) {
-      setMoodAnalysisError("Journal is empty, cannot analyze mood.");
-      setIsAnalyzingMood(false);
-      return;
-    }
-  
-    try {
-      const response = await fetch("http://localhost:3008/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          question: `Analyze the sentiment of this journal entry: "${journalEntryText}"`,
-          stream: false,
-          dev: true,
-        }),
-      });
-  
-      const responseText = await response.text();
-  
-      if (!response.ok) {
-        try {
-          const errorJson = JSON.parse(responseText);
-          throw new Error(errorJson.message || responseText);
-        } catch (e) {
-          throw new Error(responseText || `HTTP error! status: ${response.status}`);
-        }
-      }
-  
-      const parsedResult = parseInsight(responseText);
-      setMoodAnalysisResult(parsedResult);
-  
-    } catch (err) {
-      if (err instanceof Error) {
-        setMoodAnalysisError(err.message);
-      } else {
-        setMoodAnalysisError("An unexpected error occurred.");
-      }
-      setMoodAnalysisResult(null);
-    } finally {
-      setIsAnalyzingMood(false);
     }
   };
 
