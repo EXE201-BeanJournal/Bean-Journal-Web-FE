@@ -940,6 +940,18 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   
       // Now that we have the imageUrl, save the share record
       if (sharePlatform === "facebook") {
+        // TODO: Replace 'YOUR_FACEBOOK_APP_ID' with your actual Facebook App ID.
+        const FACEBOOK_APP_ID = "684755207885259";
+
+        const shareUrl = `https://esmuwiclbmirvjhwolrh.supabase.co/functions/v1/share-page/${diary.id}`;
+
+        const hashTags = "https://beanjournal.site";
+        const facebookShareUrl = `https://www.facebook.com/dialog/share?app_id=${FACEBOOK_APP_ID}&display=popup&href=${encodeURIComponent(
+          shareUrl
+        )}&hashtag=${hashTags}`;
+
+        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
+
         await createFacebookShare(supabase, {
           user_id: userId,
           journal_entry_id: diary.id,
@@ -947,6 +959,11 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           preview_image_url_cached: imageUrl,
         });
       } else if (sharePlatform === "linkedin") {
+        const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+          imageUrl
+        )}`;
+        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
+
         await createLinkedInShare(supabase, {
           user_id: userId,
           journal_entry_id: diary.id,
