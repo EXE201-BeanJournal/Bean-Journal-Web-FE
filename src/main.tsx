@@ -17,6 +17,9 @@ import { SupabaseProvider } from './contexts/SupabaseContext';
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
+// Import the Bean Journal Widget
+import ChatWidget from "./components/BeanJournalWidget/ChatWidget";
+
 //global styles
 import "./index.css";
 import "./app.css";
@@ -84,6 +87,7 @@ if (!rootElement.innerHTML) {
 			<HelmetProvider>
 				<CustomThemeProvider>
 						<RouterProvider router={router} />
+						<ChatWidget />
 				</CustomThemeProvider>
 			</HelmetProvider>
 		</StrictMode>,

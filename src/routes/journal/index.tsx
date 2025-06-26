@@ -7,7 +7,6 @@ import "react-day-picker/dist/style.css"; // Import default styles (we'll overri
 import { useState, useEffect } from "react";
 // import beanLogo from "@/images/logo_bean_journal.png"; // No longer needed here
 import HeaderCard from "@/components/journal/HeaderCard";
-import FloatingActionButton from "@/components/journal/FloatingActionButton";
 // import DebugControls from "@/components/journal/DebugControls";
 import { Profile } from "../../types/supabase"; // Import Profile interface
 // import { StreakModal, StreakModalProps } from "../../components/journal/StreakModal"; // Now handled by StreakManagement
@@ -387,7 +386,6 @@ function Homepage() {
                 onClose={() => setShowStreakModalHomepage(false)} // Added prop
             />
         )}
-        <FloatingActionButton />
       </div>
     </>
   );
