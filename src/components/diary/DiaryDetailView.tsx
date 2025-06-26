@@ -147,7 +147,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   const handleFileUploadCallbackRef = useRef<((file: File) => Promise<string>) | null>(null);
 
   const client = createBlockNoteAIClient({
-    apiKey: "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",
+    apiKey: "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",
     baseURL: "https://api.groq.com/openai/v1/chat/completions",
   });
 
