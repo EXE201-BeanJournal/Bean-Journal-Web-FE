@@ -23,6 +23,8 @@ import {
 } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import SpotifyPlayer from "@/components/diary/SpotifyPlayer";
 
 interface JournalEntryWithTags extends JournalEntry {
   tag_ids?: string[];
@@ -482,11 +484,6 @@ const DiaryPage = () => {
         <header className="mb-6">
           <h1 className="text-xl font-normal text-slate-500 mb-1" style={{ fontFamily: 'Readex Pro, sans-serif' }}>My diaries</h1>
           
-          {/* ADDED: RealtimeAvatarStack */}
-          {/* <div className="my-3">
-            <RealtimeAvatarStack roomName="diary_collaboration_room" />
-          </div> */}
-
           <TooltipProvider>
             <Tooltip delayDuration={200}>
               <TooltipTrigger asChild>
@@ -523,62 +520,73 @@ const DiaryPage = () => {
             </svg>
           </div>
 
-          {/* Tag Filters Section */}
-          <div className="mt-4">
-            <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Tags:</h2>
-            {allUserTags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {allUserTags.map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleTagFilterClick(tag.id!)}
-                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
-                    style={
-                      activeFilterTagIds.includes(tag.id!)
-                        ? { backgroundColor: tag.color_hex || '#007AFF', color: getContrastColor(tag.color_hex || '#007AFF'), borderColor: tag.color_hex || '#007AFF' }
-                        : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' } // Tailwind gray-100 bg, gray-700 text, gray-300 border
-                    }
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No tags created yet.</p>
-            )}
-          </div>
+          <Accordion type="single" collapsible className="w-full mt-4">
+            <AccordionItem value="filters">
+              <AccordionTrigger>
+                <h2 className="text-sm font-medium text-slate-500" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filters</h2>
+              </AccordionTrigger>
+              <AccordionContent>
+                {/* Tag Filters Section */}
+                <div className="pt-2">
+                  <h3 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Tags:</h3>
+                  {allUserTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {allUserTags.map(tag => (
+                        <button
+                          key={tag.id}
+                          onClick={() => handleTagFilterClick(tag.id!)}
+                          className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
+                          style={
+                            activeFilterTagIds.includes(tag.id!)
+                              ? { backgroundColor: tag.color_hex || '#007AFF', color: getContrastColor(tag.color_hex || '#007AFF'), borderColor: tag.color_hex || '#007AFF' }
+                              : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' } // Tailwind gray-100 bg, gray-700 text, gray-300 border
+                          }
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No tags created yet.</p>
+                  )}
+                </div>
 
-          {/* Project Filters Section */}
-          <div className="mt-4">
-            <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Project:</h2>
-            {allUserProjects.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {allUserProjects.map(project => (
-                  <button
-                    key={project.id}
-                    onClick={() => handleProjectFilterClick(project.id!)}
-                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
-                    style={
-                      activeFilterProjectId === project.id!
-                        ? { backgroundColor: project.color_hex || '#007AFF', color: getContrastColor(project.color_hex || '#007AFF'), borderColor: project.color_hex || '#007AFF' }
-                        : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' }
-                    }
-                  >
-                    {project.name}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handleProjectFilterClick(null)} // Clear project filter
-                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm ${!activeFilterProjectId ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-                  style={{ fontFamily: 'Readex Pro, sans-serif' }}
-                >
-                  All Projects
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No projects created yet.</p>
-            )}
-          </div>
+                {/* Project Filters Section */}
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Project:</h3>
+                  {allUserProjects.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {allUserProjects.map(project => (
+                        <button
+                          key={project.id}
+                          onClick={() => handleProjectFilterClick(project.id!)}
+                          className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
+                          style={
+                            activeFilterProjectId === project.id!
+                              ? { backgroundColor: project.color_hex || '#007AFF', color: getContrastColor(project.color_hex || '#007AFF'), borderColor: project.color_hex || '#007AFF' }
+                              : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' }
+                          }
+                        >
+                          {project.name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handleProjectFilterClick(null)} // Clear project filter
+                        className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm ${!activeFilterProjectId ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                        style={{ fontFamily: 'Readex Pro, sans-serif' }}
+                      >
+                        All Projects
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No projects created yet.</p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+          
+          <SpotifyPlayer />
 
           {/* New Calendar Section */}
           <div className="mt-6 bg-white/70 dark:bg-slate-800/70 p-1 sm:p-2 md:p-4 rounded-xl shadow-lg">

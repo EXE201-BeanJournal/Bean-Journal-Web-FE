@@ -17,7 +17,7 @@ const YouTubePlayerWidget: React.FC<YouTubePlayerWidgetProps> = ({
       autoplay: 1,
       controls: 1,
       loop: 1,
-      playlist: "jfKfPfyJRdk", // Required for single video loop
+      playlist: "dQw4w9WgXcQ", // Required for single video loop
       modestbranding: 1,
     },
   };
@@ -43,7 +43,7 @@ const YouTubePlayerWidget: React.FC<YouTubePlayerWidgetProps> = ({
         </div>
         <div className="w-full h-[180px]">
           <YouTube
-            videoId="jfKfPfyJRdk"
+            videoId="dQw4w9WgXcQ"
             opts={opts}
             className="w-full h-full"
             iframeClassName="w-full h-full rounded-b-lg"
