@@ -73,7 +73,7 @@ export const updateJournalEntry = async (supabase: SupabaseClient, entryId: stri
       .select()
       .single()
       .throwOnError();
-    toast.success('Journal entry updated successfully.');
+    // toast.success('Journal entry updated successfully.');
     return data as JournalEntry | null;
   } catch (error) {
     toast.error('Failed to update journal entry.');

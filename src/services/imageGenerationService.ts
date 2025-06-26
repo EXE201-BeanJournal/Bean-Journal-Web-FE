@@ -26,7 +26,7 @@ export const generateJournalImage = async (
     );
 
     // 1. Fetch dynamic data before rendering
-    const { imageUrl, remainingBlocks } = await extractFirstImageAndContent(
+    const { remainingBlocks } = await extractFirstImageAndContent(
       entry.content || "[]"
     );
 
@@ -34,7 +34,6 @@ export const generateJournalImage = async (
     const template = React.createElement(JournalPreview, {
       entry,
       tags,
-      imageUrl,
       remainingBlocks,
     });
 

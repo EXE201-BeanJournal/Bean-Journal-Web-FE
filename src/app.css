@@ -207,4 +207,30 @@
    border-color: #475569 !important; /* Slate-600 for general borders */
 }
 
-/* You'll need to inspect ShadCN components and see which CSS variables or utility classes they use for backgrounds, text, borders, etc., and override them within each theme block if the default contrast is poor. */ 
+/* You'll need to inspect ShadCN components and see which CSS variables or utility classes they use for backgrounds, text, borders, etc., and override them within each theme block if the default contrast is poor. */
+
+/* Custom styles for DiaryEditor */
+.diary-editor-transparent .bn-editor {
+  background: transparent !important;
+}
+
+.spotify-tooltip-theme {
+  --popover-background: #282828; /* Spotify Dark BG */
+  --popover-foreground: #B3B3B3; /* Spotify Light Gray Text */
+  --input-background: #3E3E3E; /* Specific for input within this tooltip */
+  --input-foreground: #FFFFFF;
+  --primary: #1DB954; /* Spotify Green for button */
+  --primary-foreground: #000000; /* Black text on green button */
+  --border: #535353; /* A border color */
+}
+
+/* You might need to target specific elements for input if --input-background isn't a standard variable */
+.spotify-tooltip-theme input {
+  background-color: var(--input-background, #3E3E3E); /* Fallback if var not defined */
+  color: var(--input-foreground, #FFFFFF);
+  border-color: var(--border, #535353);
+}
+.spotify-tooltip-theme input::placeholder {
+  color: var(--popover-foreground, #B3B3B3);
+  opacity: 0.7;
+} 
