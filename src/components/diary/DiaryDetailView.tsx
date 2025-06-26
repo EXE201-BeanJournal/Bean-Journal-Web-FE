@@ -53,6 +53,7 @@ import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/comp
 import { Info } from "lucide-react";
 import MoodSelector from "./detail/MoodSelector";
 import MoodBackground from "./detail/MoodBackground";
+import YouTubePlayerWidget from "./detail/YouTubePlayerWidget";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -107,6 +108,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   const [shareError, setShareError] = useState<string | null>(null);
 
   const [imageCount, setImageCount] = useState(0);
+
+  const [isMusicPlayerVisible, setIsMusicPlayerVisible] = useState(false);
 
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -981,6 +984,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     }
   }, [moodAnalysisResult]);
 
+  const handleToggleMusicPlayer = () => {
+    setIsMusicPlayerVisible(prev => !prev);
+  };
+
   return (
     <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col h-full max-h-screen">
       <DiaryHeader
@@ -993,6 +1000,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         isAnalyzingMood={isAnalyzingMood}
         moodAnalysisResult={moodAnalysisResult}
         moodAnalysisError={moodAnalysisError}
+        onToggleMusicPlayer={handleToggleMusicPlayer}
       />
 
       <div className="flex-grow overflow-y-auto">
@@ -1071,6 +1079,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         sharePreviewImageUri={sharePreviewImageUri}
         sharePlatform={sharePlatform}
       />
+
+      {isMusicPlayerVisible && <YouTubePlayerWidget onClose={handleToggleMusicPlayer} />}
     </div>
   );
 });

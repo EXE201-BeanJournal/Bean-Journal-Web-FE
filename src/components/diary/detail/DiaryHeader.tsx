@@ -1,6 +1,6 @@
 import React from "react";
 import { format } from "date-fns";
-import { Smile } from "lucide-react";
+import { Smile, Music } from "lucide-react";
 
 interface DiaryHeaderProps {
   editableTitle: string;
@@ -12,6 +12,7 @@ interface DiaryHeaderProps {
   isAnalyzingMood: boolean;
   moodAnalysisResult: string | null;
   moodAnalysisError: string | null;
+  onToggleMusicPlayer: () => void;
 }
 
 const SaveStatus: React.FC<{
@@ -68,6 +69,7 @@ const DiaryHeader: React.FC<DiaryHeaderProps> = ({
   onAnalyzeMood,
   isAnalyzingMood,
   moodAnalysisError,
+  onToggleMusicPlayer,
 }) => {
   return (
     <header className="p-4 md:p-6 flex justify-between items-center border-b border-slate-200 bg-white sticky top-0 z-10">
@@ -87,6 +89,13 @@ const DiaryHeader: React.FC<DiaryHeaderProps> = ({
           lastSaved={lastSaved}
         />
         <div className="flex items-center space-x-2">
+          <button
+            onClick={onToggleMusicPlayer}
+            className="flex items-center justify-center p-2 border border-transparent rounded-full text-slate-600 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-500"
+            aria-label="Toggle music player"
+          >
+            <Music className="h-5 w-5" />
+          </button>
           <button
             onClick={onAnalyzeMood}
             disabled={isAnalyzingMood}
