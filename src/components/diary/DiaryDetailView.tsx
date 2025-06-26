@@ -943,7 +943,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         // TODO: Replace 'YOUR_FACEBOOK_APP_ID' with your actual Facebook App ID.
         const FACEBOOK_APP_ID = "684755207885259";
 
-        const shareUrl = `https://esmuwiclbmirvjhwolrh.supabase.co/functions/v1/share-page/${diary.id}`;
+        const shareUrl = import.meta.env.SUPABASE_SHARE_PAGE_EDGE_FUNCTION + `${diary.id}`;
 
         const hashTags = "https://beanjournal.site";
         const facebookShareUrl = `https://www.facebook.com/dialog/share?app_id=${FACEBOOK_APP_ID}&display=popup&href=${encodeURIComponent(
