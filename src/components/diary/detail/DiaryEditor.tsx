@@ -25,8 +25,7 @@ import {
   AIToolbarButton,
 } from "@blocknote/xl-ai";
 import { RiAlertFill } from "react-icons/ri";
-import { filterSuggestionItems } from "@blocknote/core";
-import { BlockNoteEditor } from "@blocknote/core";
+import { filterSuggestionItems, BlockNoteEditor } from "@blocknote/core";
 
 interface DiaryEditorProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -45,7 +44,7 @@ const DiaryEditor: React.FC<DiaryEditorProps> = ({
   insertTodo,
 }) => {
   return (
-    <div className="flex-grow p-4 md:p-6 flex flex-col">
+    <div className="flex-grow p-4 md:p-6 flex flex-col diary-editor-transparent">
       {editor && (
         <BlockNoteView
           editor={editor}

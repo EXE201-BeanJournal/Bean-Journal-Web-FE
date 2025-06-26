@@ -1,6 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, forwardRef } from "react";
+import { useState, useEffect, useCallback, forwardRef, useRef } from "react";
 import { JournalEntry, Tag, Project, MediaAttachment } from "@/types/supabase";
-import debounce from "lodash/debounce";
 import type { TodoItem as TodoItemType } from "@/types/supabase";
 import {
   getTagsByUserId,
@@ -45,9 +44,16 @@ import "@blocknote/xl-ai/style.css";
 import DiaryHeader from "./detail/DiaryHeader";
 import DiaryEditor from "./detail/DiaryEditor";
 import DiaryModals from "./detail/DiaryModals";
+import DiaryFooter from "./detail/DiaryFooter";
 import { generateJournalImage } from "@/services/imageGenerationService";
 import { createFacebookShare } from "@/services/facebookShareService";
-import { createLinkedInShare } from "@/services/linkedInShareService";
+import { createLinkedInShare } from "@/services/linkedinShareService";
+import { useDebouncedCallback } from "use-debounce";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Info } from "lucide-react";
+import MoodSelector from "./detail/MoodSelector";
+import MoodBackground from "./detail/MoodBackground";
+import YouTubePlayerWidget from "./detail/YouTubePlayerWidget";
 
 interface DiaryDetailViewProps {
   diary: JournalEntry;
@@ -55,11 +61,10 @@ interface DiaryDetailViewProps {
   onDeleteDiary: (diaryIdToDelete: string) => Promise<void>;
   userId: string;
   supabase: SupabaseClient;
+  hasUnlimitedAccess: boolean;
 }
 
-const defaultInitialBlocks: PartialBlock[] = [
-  { type: "paragraph", content: "" },
-];
+const defaultInitialBlocks: PartialBlock[] = Array(13).fill({ type: "paragraph", content: "" });
 const defaultInitialContentString = JSON.stringify(defaultInitialBlocks);
 
 const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
@@ -68,6 +73,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   onDeleteDiary,
   userId,
   supabase,
+  hasUnlimitedAccess,
 }, ref) => {
   const [editableTitle, setEditableTitle] = useState(diary.title || "");
   const [currentEditorContentString, setCurrentEditorContentString] = useState<
@@ -101,6 +107,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
   const [isSharing, setIsSharing] = useState(false);
   const [shareError, setShareError] = useState<string | null>(null);
 
+  const [imageCount, setImageCount] = useState(0);
+
+  const [isMusicPlayerVisible, setIsMusicPlayerVisible] = useState(false);
+
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
   const [initialLoadedTagIds, setInitialLoadedTagIds] = useState<string[]>([]);
@@ -114,6 +124,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     string | null | undefined
   >(diary.project_id);
   const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+
+  const [moodAnalysisResult, setMoodAnalysisResult] = useState<string | null>(null);
+  const [isAnalyzingMood, setIsAnalyzingMood] = useState<boolean>(false);
+  const [moodAnalysisError, setMoodAnalysisError] = useState<string | null>(null);
 
   const BUCKET_NAME = "media-attachments";
   const SHARE_IMAGE_BUCKET_NAME = "shared-previews";
@@ -130,58 +144,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     return new File([blob], fileName, { type: mimeString });
   };
 
-  const handleFileUploadCallback = useCallback(
-    async (file: File): Promise<string> => {
-      if (!supabase || !userId || !diary || !diary.id) {
-        console.error(
-          "Supabase client, userId, or diaryId not available for file upload."
-        );
-        throw new Error(
-          "Upload context not ready. Ensure the diary entry is loaded."
-        );
-      }
-
-      const fileExtension = file.name.split(".").pop();
-      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
-
-      const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) {
-        console.error("Error uploading file to Supabase Storage:", error);
-        throw new Error(`Storage upload failed: ${error.message}`);
-      }
-
-      if (!data || !data.path) {
-        console.error(
-          "Upload successful but path is missing in response data."
-        );
-        throw new Error("Storage upload failed: path missing in response.");
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from(BUCKET_NAME)
-        .getPublicUrl(data.path);
-
-      if (!publicUrlData?.publicUrl) {
-        console.error("Error getting public URL for uploaded file:", data.path);
-        throw new Error(
-          "Failed to get public URL. File uploaded but cannot be displayed."
-        );
-      }
-      return publicUrlData.publicUrl;
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [supabase, userId, diary?.id, BUCKET_NAME]
-  );
+  const handleFileUploadCallbackRef = useRef<((file: File) => Promise<string>) | null>(null);
 
   const client = createBlockNoteAIClient({
-    apiKey: import.meta.env.BLOCKNOTE_AI_SERVER_API_KEY,
+    apiKey: "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",
     baseURL: "https://api.groq.com/openai/v1/chat/completions",
   });
 
@@ -265,11 +231,88 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     extensions: [
       createAIExtension({
         model: model,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       }) as any,
     ],
-    uploadFile: handleFileUploadCallback,
+    uploadFile: (file) => {
+      if (handleFileUploadCallbackRef.current) {
+        return handleFileUploadCallbackRef.current(file);
+      }
+      return Promise.reject("File upload handler not ready.");
+    },
   });
+
+  const handleFileUploadCallback = useCallback(
+    async (file: File): Promise<string> => {
+      if (!supabase || !userId || !diary || !diary.id || !editor) {
+        console.error(
+          "Supabase client, userId, or diaryId not available for file upload."
+        );
+        throw new Error(
+          "Upload context not ready. Ensure the diary entry is loaded."
+        );
+      }
+
+      const currentContent = editor.document;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(currentContent as any);
+
+      if (!hasUnlimitedAccess && imageUrls.length > 3) {
+        const errorMessage = "Free users are limited to 3 media attachments per diary. Please upgrade for unlimited attachments.";
+        throw new Error(errorMessage);
+      }
+
+      const fileExtension = file.name.split(".").pop();
+      const uniqueFileName = `${uuidv4()}.${fileExtension}`;
+      const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
+
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Error uploading file to Supabase Storage:", error);
+        throw new Error(`Storage upload failed: ${error.message}`);
+      }
+
+      if (!data || !data.path) {
+        console.error(
+          "Upload successful but path is missing in response data."
+        );
+        throw new Error("Storage upload failed: path missing in response.");
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(BUCKET_NAME)
+        .getPublicUrl(data.path);
+
+      if (!publicUrlData?.publicUrl) {
+        console.error("Error getting public URL for uploaded file:", data.path);
+        throw new Error(
+          "Failed to get public URL. File uploaded but cannot be displayed."
+        );
+      }
+      return publicUrlData.publicUrl;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [supabase, userId, diary.id, hasUnlimitedAccess, editor, BUCKET_NAME]
+  );
+  
+  useEffect(() => {
+    handleFileUploadCallbackRef.current = handleFileUploadCallback;
+  }, [handleFileUploadCallback]);
+
+  useEffect(() => {
+    if (editor?.document) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const imageUrls = extractImageUrlsFromBN(editor.document as any);
+      setImageCount(imageUrls.length);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentEditorContentString, editor]);
 
   useEffect(() => {
     const fetchTagsAndProjects = async () => {
@@ -301,7 +344,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       }
     };
     fetchTagsAndProjects();
-  }, [userId, supabase, diary.id]);
+  }, [diary.id, supabase, userId]);
 
   useEffect(() => {
     if (!editor || !diary) return;
@@ -346,7 +389,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
 
     setInitialDiaryContentString(contentStrToStore);
     setCurrentEditorContentString(contentStrToStore);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diary?.id, diary?.content, editor]);
 
   useEffect(() => {
@@ -361,6 +404,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     setCurrentVideoUrl(null);
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const extractImageUrlsFromBN = (blocks: Block[]): string[] => {
     let urls: string[] = [];
     for (const block of blocks) {
@@ -368,11 +412,100 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         urls.push(block.props.url);
       }
       if (block.children && Array.isArray(block.children)) {
-        urls = urls.concat(extractImageUrlsFromBN(block.children as Block[]));
+        urls = urls.concat(extractImageUrlsFromBN(block.children));
       }
     }
     return urls;
   };
+
+  const getEditorContentAsText = useCallback(async (): Promise<string> => {
+    if (!editor) {
+      return "";
+    }
+    return await editor.blocksToMarkdownLossy(editor.document);
+  }, [editor]);
+
+  const handleAnalyzeMood = useCallback(async () => {
+    setIsAnalyzingMood(true);
+    setMoodAnalysisError(null);
+  
+    const journalEntryText = await getEditorContentAsText();
+    if (!journalEntryText.trim()) {
+      setIsAnalyzingMood(false);
+      return;
+    }
+  
+    try {
+      const response = await fetch("http://localhost:3008/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          question: `Analyze the sentiment of this journal entry: "${journalEntryText}"`,
+          stream: false,
+          dev: true,
+        }),
+      });
+  
+      const responseText = await response.text();
+  
+      if (!response.ok) {
+        try {
+          const errorJson = JSON.parse(responseText);
+          throw new Error(errorJson.message || responseText);
+        } catch (e) {
+          throw new Error(responseText || `HTTP error! status: ${response.status}`);
+        }
+      }
+  
+      const parsedResult = parseInsight(responseText);
+      setMoodAnalysisResult(parsedResult);
+  
+    } catch (err) {
+      if (err instanceof Error) {
+        setMoodAnalysisError(err.message);
+      } else {
+        setMoodAnalysisError("An unexpected error occurred.");
+      }
+      setMoodAnalysisResult(null);
+    } finally {
+      setIsAnalyzingMood(false);
+    }
+  }, [getEditorContentAsText]);
+
+  const parseInsight = (insight: string): string => {
+    try {
+      const data = JSON.parse(insight);
+  
+      if (Array.isArray(data.steps)) {
+        const toolOutputStep = [...data.steps].reverse().find(step => step.type === 'tool_output');
+        if (toolOutputStep && typeof toolOutputStep.content === 'string') {
+          // Extract the number from the string "The sentiment score for the entry is X."
+          const match = toolOutputStep.content.match(/\d+/);
+          if (match) {
+            return match[0];
+          }
+          return toolOutputStep.content;
+        }
+      }
+  
+      if (typeof data.answer === 'string') {
+        try {
+          const nestedData = JSON.parse(data.answer);
+          if (nestedData && typeof nestedData.finalAnswerPrompt === 'string') {
+            return nestedData.finalAnswerPrompt;
+          }
+        } catch (e) {
+          return data.answer;
+        }
+      }
+      
+      return JSON.stringify(data, null, 2);
+    } catch (error) {
+      return insight;
+    }
+  }
 
   const handleSave = useCallback(
     async (
@@ -499,8 +632,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           }
 
           try {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const currentEditorImageUrls = extractImageUrlsFromBN(
-              parsedBlocks as unknown as Block[]
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              parsedBlocks as any
             );
             const existingAttachments = await getMediaAttachmentsByEntryId(
               supabase,
@@ -598,6 +733,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         setInitialMoodLabel(moodToSave);
         setInitialProjectId(projectToSaveId);
         setHasUnsavedChanges(false);
+
+        // handleAnalyzeMood();
       } catch (error) {
         console.error("Error saving diary:", error);
         setHasUnsavedChanges(true);
@@ -615,12 +752,11 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       selectedTagIds,
       BUCKET_NAME,
       editor,
+      // handleAnalyzeMood,
     ]
   );
 
-  const debouncedSave = useMemo(
-    () =>
-      debounce(
+  const debouncedSave = useDebouncedCallback(
         (
           newTitle: string,
           newContentString?: string,
@@ -637,9 +773,7 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           );
         },
         2000
-      ),
-    [handleSave]
-  );
+      );
 
   useEffect(() => {
     setEditableTitle(diary.title || "");
@@ -759,6 +893,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     }
   };
 
+  const canAddAttachments = hasUnlimitedAccess || imageCount < 3;
+
   const handleShareConfirmOk = async () => {
     if (!diary.id || !userId || !supabase || !sharePreviewImageUri || !sharePlatform) {
       console.error("Cannot generate share, missing context or preview image.");
@@ -767,21 +903,20 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       );
       return;
     }
-
+  
     setIsSharing(true);
     setShareError(null);
     setIsShareConfirmVisible(false);
-
+  
     try {
-      // Image already generated, now upload
       const imageFile = dataURItoFile(
         sharePreviewImageUri,
         `share-image-${diary.id}.png`
       );
-
+  
       const uniqueFileName = `${uuidv4()}.png`;
       const filePath = `${userId}/${diary.id}/${uniqueFileName}`;
-
+  
       const { error: uploadError } = await supabase.storage
         .from(SHARE_IMAGE_BUCKET_NAME)
         .upload(filePath, imageFile, {
@@ -789,11 +924,11 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
           cacheControl: "3600",
           upsert: false,
         });
-
+  
       if (uploadError) {
-        throw new Error("Failed to upload share image.");
+        throw new Error(`Failed to upload share image: ${uploadError.message}`);
       }
-
+  
       const imageUrl = getPublicUrl(
         supabase,
         SHARE_IMAGE_BUCKET_NAME,
@@ -802,42 +937,41 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
       if (!imageUrl) {
         throw new Error("Failed to get public URL for share image.");
       }
-
-      const tagNames = availableTags
-        .filter((t) => selectedTagIds.includes(t.id!))
-        .map((t) => `#${t.name}`)
-        .join(" ");
-
+  
+      // Now that we have the imageUrl, save the share record
       if (sharePlatform === "facebook") {
+        // TODO: Replace 'YOUR_FACEBOOK_APP_ID' with your actual Facebook App ID.
+        const FACEBOOK_APP_ID = "684755207885259";
+
+        const shareUrl = `https://esmuwiclbmirvjhwolrh.supabase.co/functions/v1/share-page/${diary.id}`;
+
+        const hashTags = "https://beanjournal.site";
+        const facebookShareUrl = `https://www.facebook.com/dialog/share?app_id=${FACEBOOK_APP_ID}&display=popup&href=${encodeURIComponent(
+          shareUrl
+        )}&hashtag=${hashTags}`;
+
+        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
+
         await createFacebookShare(supabase, {
           user_id: userId,
           journal_entry_id: diary.id,
           preview_image_path: filePath,
           preview_image_url_cached: imageUrl,
         });
-  
-        const quote = `Check out my journal! ${tagNames}`;
-        const hashtag = encodeURIComponent("#BeanJournal");
-        const facebookShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(
-          imageUrl
-        )}&quote=${encodeURIComponent(quote)}&hashtag=${hashtag}`;
-        window.open(facebookShareUrl, "_blank", "noopener,noreferrer");
-
       } else if (sharePlatform === "linkedin") {
+        const linkedInShareUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
+          imageUrl
+        )}`;
+        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
+
         await createLinkedInShare(supabase, {
           user_id: userId,
           journal_entry_id: diary.id,
           preview_image_path: filePath,
           preview_image_url_cached: imageUrl,
         });
-
-        const title = diary.title || 'My Journal Entry';
-        const summary = `Check out my journal! ${tagNames}`;
-        const source = 'Bean Journal';
-        const linkedInShareUrl = `https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(imageUrl)}&title=${encodeURIComponent(title)}&summary=${encodeURIComponent(summary)}&source=${encodeURIComponent(source)}`;
-        window.open(linkedInShareUrl, "_blank", "noopener,noreferrer");
       }
-
+  
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       setShareError(message || "An unexpected error occurred during sharing.");
@@ -848,12 +982,92 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
     }
   };
 
+  useEffect(() => {
+    const mapScoreToMoodValue = (score: string | null): string | null => {
+      if (!score) return null;
+      switch (score) {
+        case "1": return "mad";
+        case "2": return "sad";
+        case "3": return "neutral";
+        case "4": return "happy";
+        case "5": return "amazing";
+        default: return null;
+      }
+    };
+
+    const moodValue = mapScoreToMoodValue(moodAnalysisResult);
+    if (moodValue) {
+      setCurrentSelectedMood(moodValue);
+    }
+  }, [moodAnalysisResult]);
+
+  const handleToggleMusicPlayer = () => {
+    setIsMusicPlayerVisible(prev => !prev);
+  };
+
   return (
-    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col">
+    <div ref={ref} className="bg-white rounded-xl shadow-lg flex flex-col h-full max-h-screen">
       <DiaryHeader
-        diary={diary}
         editableTitle={editableTitle}
         setEditableTitle={setEditableTitle}
+        lastSaved={lastSaved}
+        isSaving={isSaving}
+        hasUnsavedChanges={hasUnsavedChanges}
+        onAnalyzeMood={handleAnalyzeMood}
+        isAnalyzingMood={isAnalyzingMood}
+        moodAnalysisResult={moodAnalysisResult}
+        moodAnalysisError={moodAnalysisError}
+        onToggleMusicPlayer={handleToggleMusicPlayer}
+      />
+
+      <div className="flex-grow overflow-y-auto">
+        <div className="mx-4 flex justify-between items-center">
+          {shareError && (
+            <div
+              className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4"
+              role="alert"
+            >
+              <p className="font-bold">Sharing Error</p>
+              <p>{shareError}</p>
+            </div>
+          )}
+
+          {!canAddAttachments && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center text-yellow-600">
+                    <Info className="h-5 w-5 mr-2" />
+                    <span className="font-semibold">Attachment limit reached</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Free users can only add up to 3 attachments.</p>
+                  <p>Please upgrade for unlimited attachments.</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+
+        <div className="relative">
+          <MoodBackground mood={currentSelectedMood} />
+          <DiaryEditor
+            editor={editor}
+            setCurrentEditorContentString={setCurrentEditorContentString}
+            insertAlert={insertAlert}
+            insertTodo={insertTodo}
+          />
+          <div className="absolute top-4 right-4 z-10">
+            <MoodSelector
+              selectedMood={currentSelectedMood}
+              onSelectMood={setCurrentSelectedMood}
+            />
+          </div>
+        </div>
+      </div>
+
+      <DiaryFooter
         selectedTagIds={selectedTagIds}
         setSelectedTagIds={setSelectedTagIds}
         availableTags={availableTags}
@@ -862,32 +1076,10 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         setSelectedProjectId={setSelectedProjectId}
         availableProjects={availableProjects}
         isLoadingProjects={isLoadingProjects}
-        currentSelectedMood={currentSelectedMood}
-        setCurrentSelectedMood={setCurrentSelectedMood}
-        lastSaved={lastSaved}
-        isSaving={isSaving}
-        hasUnsavedChanges={hasUnsavedChanges}
         showDeleteConfirm={showDeleteConfirm}
         onShareToFacebook={() => showShareConfirm("facebook")}
         onShareToLinkedIn={() => showShareConfirm("linkedin")}
         isSharing={isSharing}
-      />
-
-      {shareError && (
-        <div
-          className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mx-4 my-2"
-          role="alert"
-        >
-          <p className="font-bold">Sharing Error</p>
-          <p>{shareError}</p>
-        </div>
-      )}
-
-      <DiaryEditor
-        editor={editor}
-        setCurrentEditorContentString={setCurrentEditorContentString}
-        insertAlert={insertAlert}
-        insertTodo={insertTodo}
       />
 
       <DiaryModals
@@ -904,6 +1096,8 @@ const DiaryDetailView = forwardRef<HTMLDivElement, DiaryDetailViewProps>(({
         sharePreviewImageUri={sharePreviewImageUri}
         sharePlatform={sharePlatform}
       />
+
+      {isMusicPlayerVisible && <YouTubePlayerWidget onClose={handleToggleMusicPlayer} />}
     </div>
   );
 });

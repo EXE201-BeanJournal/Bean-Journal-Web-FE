@@ -58,4 +58,4 @@ div[data-mantine-portal] .bn-suggestion-menu-item {
     /* Reduces the max height on smaller devices to ensure it doesn't take up too much screen real estate. */
     max-height: 40vh;
   }
-} 
+}

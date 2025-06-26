@@ -1,30 +1,34 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import DiaryCard from '@/components/diary/DiaryCard';
-// import DiaryCreateForm from '@/components/diary/DiaryCreateForm'; // Commented out as DiaryDetailView will be editor
-import DiaryDetailView from '@/components/diary/DiaryDetailView';
-import { JournalEntry, Tag, Project } from '@/types/supabase';
-// import { createClerkSupabaseClient } from "@/utils/supabaseClient"; // No longer needed
-import { useAuth } from "@clerk/clerk-react"; // Kept for userId, getToken might be removed if not used elsewhere
-import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
-import { createJournalEntry, getJournalEntriesByUserId, updateJournalEntry, deleteJournalEntry } from '@/services/journalEntryService'; // Added journal entry services and updateJournalEntry
-import { getTagsByUserId, getEntryTagsByEntryId } from '@/services/tagService'; // Added tag service and getEntryTagsByEntryId
-import { getProjectsByUserId } from '@/services/projectService'; // ADDED: Import project service
-// import Calendar from 'react-calendar'; // REMOVED react-calendar import
-// import 'react-calendar/dist/Calendar.css'; // REMOVED react-calendar CSS
-// import { useRouter, useSearchParams } from 'next/navigation'; // REMOVE Next.js router hooks
-import { useNavigate, useSearch, useRouterState } from '@tanstack/react-router'; // Import TanStack Router hooks
-import { ChevronLeft, ChevronRight } from 'lucide-react'; // Added Chevron icons
-import { createGroq } from "@ai-sdk/groq";
-import { Block } from '@blocknote/core';
-import { generateText } from 'ai';
-import { DiaryCardSkeleton } from '@/components/diary/DiaryCardSkeleton';
-import { DiaryDetailViewSkeleton } from '@/components/diary/DiaryDetailViewSkeleton';
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useAuth, useUser } from "@clerk/clerk-react";
+import { useSupabase } from "@/contexts/SupabaseContext";
+import {
+  createJournalEntry,
+  getJournalEntriesByUserId,
+  updateJournalEntry,
+  deleteJournalEntry,
+} from "@/services/journalEntryService";
+import type { JournalEntry, Tag, Project } from "@/types/supabase";
+import DiaryCard from "@/components/diary/DiaryCard";
+import { DiaryCardSkeleton } from "@/components/diary/DiaryCardSkeleton";
+import DiaryDetailView from "@/components/diary/DiaryDetailView";
+import { DiaryDetailViewSkeleton } from "@/components/diary/DiaryDetailViewSkeleton";
+import { getTagsByUserId, getEntryTagsByEntryId } from "@/services/tagService";
+import { getProjectsByUserId } from "@/services/projectService";
+import {
+  useNavigate,
+  useRouterState,
+  useSearch,
+} from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import SpotifyPlayer from "@/components/diary/SpotifyPlayer";
 
-// ADDED: Imports for Realtime components
-// import { RealtimeAvatarStack } from '@/components/realtime-avatar-stack'; 
-// import { RealtimeCursors } from '@/components/realtime-cursors';
+interface JournalEntryWithTags extends JournalEntry {
+  tag_ids?: string[];
+}
 
 // Define a type for your search params. 
 // This should align with your TanStack Router configuration for this route.
@@ -53,11 +57,6 @@ const getContrastColor = (hexcolor?: string): string => {
   const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
   return (yiq >= 128) ? '#000000' : '#FFFFFF';
 };
-
-// Local type extension for filtering purposes
-interface JournalEntryWithTags extends JournalEntry {
-  tag_ids?: string[];
-}
 
 const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]; // Added for new calendar
 
@@ -89,7 +88,8 @@ const sortDiariesByEntryTimestamp = (a: JournalEntryWithTags, b: JournalEntryWit
 };
 
 const DiaryPage = () => {
-  const { userId } = useAuth(); // getToken removed as it's not directly used here anymore
+  const { userId, has, isLoaded } = useAuth(); // getToken removed as it's not directly used here anymore
+  const { user } = useUser();
   const supabase = useSupabase();
 
   const [isLoading, setIsLoading] = useState(true);
@@ -106,8 +106,7 @@ const DiaryPage = () => {
   const [allUserProjects, setAllUserProjects] = useState<Project[]>([]); // ADDED: State for user projects
   const [activeFilterProjectId, setActiveFilterProjectId] = useState<string | null>(null); // ADDED: State for active project filter
 
-  const [aiSummary, setAiSummary] = useState<string | null>(null);
-  const [isAiSummaryLoading, setIsAiSummaryLoading] = useState(false);
+  const [canCreateNewDiary, setCanCreateNewDiary] = useState(true);
 
   // const router = useRouter(); // REMOVE Next.js useRouter
   // const searchParams = useSearchParams(); // REMOVE Next.js useSearchParams
@@ -118,7 +117,31 @@ const DiaryPage = () => {
   const createNewHandledRef = useRef(false); // Ref to track if createNew has been handled
   const entryIdFromUrlRef = useRef<string | null>(null); // Ref to track entryId from URL
 
+  const hasUnlimitedAccess = isLoaded && has ? has({ feature: 'unlimited_journals_entries' }) : false;
+
+  useEffect(() => {
+    if (user && diaries) {
+        if (!hasUnlimitedAccess) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            const diariesCreatedToday = diaries.filter(diary => {
+                if (!diary.entry_timestamp) return false;
+                const entryDate = new Date(diary.entry_timestamp);
+                return entryDate.toDateString() === today.toDateString();
+            });
+
+            setCanCreateNewDiary(diariesCreatedToday.length < 1);
+        } else {
+            setCanCreateNewDiary(true);
+        }
+    }
+  }, [diaries, user, hasUnlimitedAccess]);
+
   const handleCreateNew = useCallback(async () => {
+    if (!canCreateNewDiary) {
+      return;
+    }
     if (!userId || !supabase) {
       setError("User not authenticated or Supabase client not available.");
       return;
@@ -144,7 +167,7 @@ const DiaryPage = () => {
       console.error("Error creating new diary:", err);
       setError("An error occurred while creating the new diary.");
     }
-  }, [userId, supabase, activeFilterProjectId]);
+  }, [userId, supabase, activeFilterProjectId, canCreateNewDiary]);
 
   // Effect to handle 'createNew' search parameter
   useEffect(() => {
@@ -236,11 +259,11 @@ const DiaryPage = () => {
           ]);
 
           if (fetchedDiaries) {
-            const diariesWithTagsPromises = fetchedDiaries.map(async (diary) => {
+            const diariesWithTagsPromises = fetchedDiaries.map(async (diary: JournalEntry) => {
               if (!diary.id) return { ...diary, tag_ids: [] };
               try {
                 const entryTags = await getEntryTagsByEntryId(supabase, diary.id);
-                const tagIds = entryTags.map(et => et.tag_id);
+                const tagIds = entryTags.map((et: {tag_id: string}) => et.tag_id);
                 return { ...diary, tag_ids: tagIds };
               } catch (tagError) {
                 console.error(`Error fetching tags for diary ${diary.id}:`, tagError);
@@ -250,7 +273,7 @@ const DiaryPage = () => {
 
             const diariesWithTags = await Promise.all(diariesWithTagsPromises);
             const sortedDiaries = diariesWithTags.sort(sortDiariesByEntryTimestamp);
-            setDiaries(sortedDiaries);
+            setDiaries(sortedDiaries as JournalEntryWithTags[]);
 
             const isMobile = window.matchMedia("(max-width: 767px)").matches;
             if (sortedDiaries.length > 0 && !entryIdFromUrlRef.current) {
@@ -434,74 +457,6 @@ const DiaryPage = () => {
   // If selected diary is filtered out, try to find it in the original diaries list
   const currentSelectedDiary = selectedDiary || diaries.find(d => d.id === selectedDiaryId);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const extractTextFromBlockContent = (content: any[]): string => {
-    return content.map(item => {
-      if (item.type === 'link' && item.content) {
-        return extractTextFromBlockContent(item.content);
-      }
-      return item.text || '';
-    }).join('');
-  };
-
-  const handleGenerateSummary = async () => {
-    if (!filteredDiaries.length) {
-      setAiSummary("No entries for this day to summarize.");
-      return;
-    }
-
-    setIsAiSummaryLoading(true);
-    setAiSummary(null);
-
-    try {
-      const groq = createGroq({
-        apiKey: "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",
-      });
-
-      const combinedContent = filteredDiaries
-        .map((diary) => {
-          if (!diary.content) return "";
-          try {
-            const blocks: Block[] = JSON.parse(diary.content as string);
-            return blocks
-              .map((block) => {
-                if (block.type === "paragraph" && block.content) {
-                  return extractTextFromBlockContent(block.content);
-                }
-                return "";
-              })
-              .join("\n");
-          } catch (e) {
-            // It might be plain text
-            if (typeof diary.content === 'string') {
-                return diary.content;
-            }
-            console.error("Error parsing diary content:", e);
-            return "";
-          }
-        })
-        .join("\n\n");
-
-      if (combinedContent.trim().length < 20) {
-        setAiSummary("Not enough content to generate a summary.");
-        setIsAiSummaryLoading(false);
-        return;
-      }
-
-      const { text } = await generateText({
-        model: groq("llama3-8b-8192"),
-        prompt: `Please provide a concise summary of the following journal entries for the day. The summary should be a single paragraph, highlighting the main activities, moods, and any significant events or thoughts. Entries are separated by newlines. Do not use markdown or special formatting. Just return the summary text:\n\n${combinedContent}`,
-      });
-
-      setAiSummary(text);
-    } catch (error) {
-      console.error("Error generating AI summary:", error);
-      setAiSummary("Failed to generate summary. Please try again.");
-    } finally {
-      setIsAiSummaryLoading(false);
-    }
-  };
-
   if (!userId) {
     return <div className="p-8 text-center">Please sign in to view your diaries.</div>;
   }
@@ -529,18 +484,28 @@ const DiaryPage = () => {
         <header className="mb-6">
           <h1 className="text-xl font-normal text-slate-500 mb-1" style={{ fontFamily: 'Readex Pro, sans-serif' }}>My diaries</h1>
           
-          {/* ADDED: RealtimeAvatarStack */}
-          {/* <div className="my-3">
-            <RealtimeAvatarStack roomName="diary_collaboration_room" />
-          </div> */}
-
-          <button 
-            onClick={handleCreateNew}
-            disabled={false} // No longer tied to a specific loading state
-            className="w-full mt-3 mb-3 px-4 py-2 text-sm font-medium text-black bg-[#DAE6D4] rounded-lg hover:bg-[#DAE6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#DAE6D4] transition-colors disabled:opacity-50"
-          >
-            + Create New Diary
-          </button>
+          <TooltipProvider>
+            <Tooltip delayDuration={200}>
+              <TooltipTrigger asChild>
+                <div className="w-full mt-3 mb-3">
+                  <button
+                    onClick={handleCreateNew}
+                    disabled={!canCreateNewDiary}
+                    className="w-full px-4 py-2 text-sm font-medium text-black bg-[#DAE6D4] rounded-lg hover:bg-[#DAE6D4] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#DAE6D4] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    + Create New Diary
+                  </button>
+                </div>
+              </TooltipTrigger>
+              {!canCreateNewDiary && (
+                <TooltipContent>
+                  <p className="text-sm font-semibold">Free plan limit reached.</p>
+                  <p className="text-xs">You can create one diary per day. Upgrade for unlimited entries.</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
+          
           <div className="relative mt-2">
             <input 
               type="text" 
@@ -555,62 +520,73 @@ const DiaryPage = () => {
             </svg>
           </div>
 
-          {/* Tag Filters Section */}
-          <div className="mt-4">
-            <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Tags:</h2>
-            {allUserTags.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {allUserTags.map(tag => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleTagFilterClick(tag.id!)}
-                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
-                    style={
-                      activeFilterTagIds.includes(tag.id!)
-                        ? { backgroundColor: tag.color_hex || '#007AFF', color: getContrastColor(tag.color_hex || '#007AFF'), borderColor: tag.color_hex || '#007AFF' }
-                        : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' } // Tailwind gray-100 bg, gray-700 text, gray-300 border
-                    }
-                  >
-                    {tag.name}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No tags created yet.</p>
-            )}
-          </div>
+          <Accordion type="single" collapsible className="w-full mt-4">
+            <AccordionItem value="filters">
+              <AccordionTrigger>
+                <h2 className="text-sm font-medium text-slate-500" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filters</h2>
+              </AccordionTrigger>
+              <AccordionContent>
+                {/* Tag Filters Section */}
+                <div className="pt-2">
+                  <h3 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Tags:</h3>
+                  {allUserTags.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {allUserTags.map(tag => (
+                        <button
+                          key={tag.id}
+                          onClick={() => handleTagFilterClick(tag.id!)}
+                          className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
+                          style={
+                            activeFilterTagIds.includes(tag.id!)
+                              ? { backgroundColor: tag.color_hex || '#007AFF', color: getContrastColor(tag.color_hex || '#007AFF'), borderColor: tag.color_hex || '#007AFF' }
+                              : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' } // Tailwind gray-100 bg, gray-700 text, gray-300 border
+                          }
+                        >
+                          {tag.name}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No tags created yet.</p>
+                  )}
+                </div>
 
-          {/* Project Filters Section */}
-          <div className="mt-4">
-            <h2 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Project:</h2>
-            {allUserProjects.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {allUserProjects.map(project => (
-                  <button
-                    key={project.id}
-                    onClick={() => handleProjectFilterClick(project.id!)}
-                    className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
-                    style={
-                      activeFilterProjectId === project.id!
-                        ? { backgroundColor: project.color_hex || '#007AFF', color: getContrastColor(project.color_hex || '#007AFF'), borderColor: project.color_hex || '#007AFF' }
-                        : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' }
-                    }
-                  >
-                    {project.name}
-                  </button>
-                ))}
-                <button
-                  onClick={() => handleProjectFilterClick(null)} // Clear project filter
-                  className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm ${!activeFilterProjectId ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
-                  style={{ fontFamily: 'Readex Pro, sans-serif' }}
-                >
-                  All Projects
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No projects created yet.</p>
-            )}
-          </div>
+                {/* Project Filters Section */}
+                <div className="mt-4">
+                  <h3 className="text-sm font-medium text-slate-500 mb-2" style={{ fontFamily: 'Readex Pro, sans-serif' }}>Filter by Project:</h3>
+                  {allUserProjects.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {allUserProjects.map(project => (
+                        <button
+                          key={project.id}
+                          onClick={() => handleProjectFilterClick(project.id!)}
+                          className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm`}
+                          style={
+                            activeFilterProjectId === project.id!
+                              ? { backgroundColor: project.color_hex || '#007AFF', color: getContrastColor(project.color_hex || '#007AFF'), borderColor: project.color_hex || '#007AFF' }
+                              : { backgroundColor: '#F3F4F6', color: '#374151', borderColor: '#D1D5DB', fontFamily: 'Readex Pro, sans-serif' }
+                          }
+                        >
+                          {project.name}
+                        </button>
+                      ))}
+                      <button
+                        onClick={() => handleProjectFilterClick(null)} // Clear project filter
+                        className={`px-2.5 py-1 text-xs rounded-md border transition-colors duration-150 ease-in-out shadow-sm ${!activeFilterProjectId ? 'bg-slate-500 text-white' : 'bg-slate-200 text-slate-700 hover:bg-slate-300'}`}
+                        style={{ fontFamily: 'Readex Pro, sans-serif' }}
+                      >
+                        All Projects
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-400" style={{ fontFamily: 'Readex Pro, sans-serif' }}>No projects created yet.</p>
+                  )}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+          
+          <SpotifyPlayer />
 
           {/* New Calendar Section */}
           <div className="mt-6 bg-white/70 dark:bg-slate-800/70 p-1 sm:p-2 md:p-4 rounded-xl shadow-lg">
@@ -636,21 +612,6 @@ const DiaryPage = () => {
               </div>
             </div>
 
-            <div className="mt-4">
-              <button
-                onClick={handleGenerateSummary}
-                disabled={isAiSummaryLoading || filteredDiaries.length === 0}
-                className="w-full px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-              >
-                {isAiSummaryLoading ? 'Generating...' : 'Generate AI Summary'}
-              </button>
-              {aiSummary && (
-                <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-800 rounded-md">
-                  <p className="text-sm text-gray-800 dark:text-gray-200">{aiSummary}</p>
-                </div>
-              )}
-            </div>
-
             {/* Calendar Grid */}
             <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mt-4">
               {daysOfWeek.map(day => (
@@ -662,7 +623,7 @@ const DiaryPage = () => {
                 const isToday = day && new Date(currentYear, calendarDateForLogic.getMonth(), day).toDateString() === new Date().toDateString();
                 const isSelectedDate = day && selectedDate && new Date(currentYear, calendarDateForLogic.getMonth(), day).toDateString() === selectedDate.toDateString();
                 const hasDiaryEntry = day && diaries.some(diary => {
-                    const entryDate = new Date(diary.entry_timestamp);
+                    const entryDate = new Date(diary.entry_timestamp as string);
                     return entryDate.getFullYear() === currentYear &&
                            entryDate.getMonth() === calendarDateForLogic.getMonth() &&
                            entryDate.getDate() === day;
@@ -675,8 +636,8 @@ const DiaryPage = () => {
                     disabled={!day}
                     className={`p-1.5 sm:p-2 rounded-full w-full aspect-square flex items-center justify-center text-xs sm:text-sm transition-colors
                       ${!day ? "bg-transparent cursor-default" : "hover:bg-slate-200 dark:hover:bg-slate-700"}
-                      ${isSelectedDate ? "bg-primary text-primary-foreground ring-2 ring-primary dark:bg-green-600/80 dark:text-white" 
-                        : isToday ? "bg-primary/30 text-primary-foreground dark:bg-green-500/50 dark:text-white font-semibold" 
+                      ${isSelectedDate ? "bg-primary text-primary-foreground ring-2 ring-primary dark:bg-green-600/80 dark:text-white"
+                        : isToday ? "bg-primary/30 text-primary-foreground dark:bg-green-500/50 dark:text-white font-semibold"
                         : "text-slate-700 dark:text-gray-300"}
                       ${hasDiaryEntry && !isSelectedDate ? "!bg-primary/20 dark:!bg-green-400/30 !font-bold" : ""}
                     `}
@@ -686,12 +647,15 @@ const DiaryPage = () => {
                 );
               })}
             </div>
-             <button
+            <div className="mt-4">
+              <button
                 onClick={() => setSelectedDate(null)}
-                className="w-full mt-3 px-3 py-1.5 text-xs font-medium text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-slate-400 transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                className="w-full px-4 py-2 text-sm font-medium text-slate-600 bg-slate-200 rounded-md hover:bg-slate-300 focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-slate-400 transition-colors dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
               >
                 Show All Dates
               </button>
+            </div>
+
           </div>
         </header>
 
@@ -766,6 +730,7 @@ const DiaryPage = () => {
               onDeleteDiary={handleDeleteDiary} 
               userId={userId}
               supabase={supabase}
+              hasUnlimitedAccess={hasUnlimitedAccess}
             />
           ) : diaries.length === 0 ? (
             <div className="text-center py-10 flex flex-col items-center justify-center h-full">
