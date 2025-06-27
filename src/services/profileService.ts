@@ -13,6 +13,8 @@ export const getProfileByEmail = async (supabase: SupabaseClient, email: string)
         .eq('email', email)
         .single();
 
+    console.log('data', data);
+
     if (error && error.code !== 'PGRST116') { // PGRST116: "exact one row not found"
         console.error('Error fetching profile by email:', error);
         throw error;

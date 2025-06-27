@@ -139,6 +139,7 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
         invited_by: userId
       });
       
+      console.log(`User ${profile.email} added as a collaborator to memory zone ${zone.id} with permission level 'view'. Invited by ${userId}.`);
       toast.success(`${profile.email} has been added as a collaborator.`);
       setNewCollaboratorEmail('');
       await fetchCollaborators();
@@ -160,7 +161,7 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
     try {
       await removeCollaborator(supabase, collaboratorId);
       toast.success('Collaborator removed.');
-      await fetchCollaborators();
+      setCollaborators(prev => prev.filter(c => c.id !== collaboratorId));
     } catch (error) {
       console.error('Error removing collaborator:', error);
       toast.error('Failed to remove collaborator.');
@@ -180,7 +181,11 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
     try {
       await updateCollaboratorPermission(supabase, collaboratorId, permission);
       toast.success('Permissions updated.');
-      await fetchCollaborators();
+      setCollaborators(prev => 
+        prev.map(c => 
+          c.id === collaboratorId ? { ...c, permission_level: permission } : c
+        )
+      );
     } catch (error) {
       console.error('Error updating permission:', error);
       toast.error('Failed to update permissions.');
