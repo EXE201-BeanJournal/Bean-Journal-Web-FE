@@ -10,6 +10,7 @@ import Faq from '@/components/faqs';
 import Cta from '@/components/call-to-action';
 import { HeroHeader } from "@/components/hero5-header";
 import TeamSection from '@/components/team';
+// import SpinningModel from "./kasane_teto_fatass_plush.glb"; // Make sure this component exists and handles .glb loading
 
 // Import landing page specific styles
 import '../landing-page-theme.css'; 
@@ -57,6 +58,11 @@ function Index() {
     </div>
   );
 }
+// Add this import to your hero-section.tsx or wherever you want the model
+
+
+// Then use it in your JSX:
+
 
 // Exporting the component directly as default is common practice
 // export default Index; // No longer needed as it's the route component

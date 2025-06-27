@@ -40,6 +40,7 @@
 		"@radix-ui/react-switch": "^1.2.5",
 		"@radix-ui/react-toast": "^1.2.7",
 		"@radix-ui/react-tooltip": "^1.2.7",
+		"@react-three/drei": "^10.3.0",
 		"@react-three/fiber": "^8.16.0",
 		"@supabase/ssr": "^0.6.1",
 		"@supabase/supabase-js": "^2.49.10",
