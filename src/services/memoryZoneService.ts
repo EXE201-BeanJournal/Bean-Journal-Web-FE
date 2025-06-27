@@ -1,6 +1,7 @@
 import { SupabaseClient } from '@supabase/supabase-js';
 import { toast } from 'sonner';
 import { MemoryZone } from '../types/supabase';
+import { getSharedZoneIds } from './memoryZoneCollaboratorService';
 
 const TABLE_NAME = 'memory_zones';
 
@@ -33,11 +34,29 @@ export const getMemoryZoneById = async (supabase: SupabaseClient, id: string): P
   return data;
 };
 
-export const getAccessibleMemoryZones = async (supabase: SupabaseClient): Promise<MemoryZone[]> => {
-  const { data, error } = await supabase
+export const getAccessibleMemoryZones = async (supabase: SupabaseClient, userId: string | null | undefined): Promise<MemoryZone[]> => {
+  if (!userId) {
+    // This case should be handled by the route guard, but as a fallback:
+    return [];
+  }
+
+  const sharedZoneIds = await getSharedZoneIds(supabase, userId);
+
+  let query = supabase
     .from(TABLE_NAME)
-    .select('*')
-    .order('created_at', { ascending: false });
+    .select('*');
+
+  const ownerFilter = `owner_id.eq.${userId}`;
+  
+  if (sharedZoneIds.length > 0) {
+    const collaboratorFilter = `id.in.(${sharedZoneIds.join(',')})`;
+    query = query.or(`${ownerFilter},${collaboratorFilter}`);
+  } else {
+    // If they are not a collaborator on any zone, only fetch their owned zones.
+    query = query.eq('owner_id', userId);
+  }
+  
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) {
     toast.error("Failed to fetch memory zones", { description: error.message });

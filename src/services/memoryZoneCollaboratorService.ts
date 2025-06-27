@@ -76,4 +76,19 @@ export const getCollaborator = async (supabase: SupabaseClient, memory_zone_id: 
         return null;
     }
     return data;
-} 
+}
+
+export const getSharedZoneIds = async (supabase: SupabaseClient, userId: string): Promise<string[]> => {
+    if (!userId) return [];
+    const { data, error } = await supabase
+        .from(TABLE_NAME)
+        .select('memory_zone_id')
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error("Error fetching shared zone IDs:", error);
+        toast.error("Could not fetch shared zones.");
+        return [];
+    }
+    return data?.map(z => z.memory_zone_id) || [];
+}; 
