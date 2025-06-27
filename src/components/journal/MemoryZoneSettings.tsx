@@ -1,27 +1,30 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSupabase } from '@/contexts/SupabaseContext';
 import { useAuth } from '@clerk/clerk-react';
-import { MemoryZone, MemoryZoneCollaborator, CollaboratorProfile } from '@/types/supabase';
+import { MemoryZone, MemoryZoneCollaborator, Profile } from '@/types/supabase';
 import { getCollaboratorsForZone, addCollaborator, removeCollaborator, updateCollaboratorPermission } from '@/services/memoryZoneCollaboratorService';
-import { getProfileByEmail, getProfilesByIds, getProfileById } from '@/services/profileService';
+import { getProfilesByIds, getProfileById, searchProfiles } from '@/services/profileService';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { X, UserPlus, Crown, Loader2 } from 'lucide-react';
+import { X, UserPlus, Crown, Loader2, ChevronsUpDown } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { updateMemoryZone, deleteMemoryZone } from '@/services/memoryZoneService';
 import { useNavigate, useRouter } from '@tanstack/react-router';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { useDebounce } from '@/hooks/useDebounce';
 
 interface MemoryZoneSettingsProps {
   zone: MemoryZone;
   onUpdate?: () => void;
 }
 
-type CollaboratorWithProfile = MemoryZoneCollaborator & { profile: CollaboratorProfile | null };
+type CollaboratorWithProfile = MemoryZoneCollaborator & { profile: Profile | null };
 
 export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) {
   const supabase = useSupabase();
@@ -30,15 +33,26 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
   const navigate = useNavigate();
 
   const [collaborators, setCollaborators] = useState<CollaboratorWithProfile[]>([]);
-  const [ownerProfile, setOwnerProfile] = useState<CollaboratorProfile | null>(null);
+  const [ownerProfile, setOwnerProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [newCollaboratorEmail, setNewCollaboratorEmail] = useState('');
+  
   const [zoneTitle, setZoneTitle] = useState(zone.title);
   const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // For collaborator search combobox
+  const [isSearchPopoverOpen, setIsSearchPopoverOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const debouncedSearchQuery = useDebounce(searchQuery, 300);
+  const [searchResults, setSearchResults] = useState<Profile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<Profile | null>(null);
+
+
   const isOwner = userId === zone.owner_id;
+
+  const collaboratorUserIds = useMemo(() => collaborators.map(c => c.user_id), [collaborators]);
 
   const fetchCollaborators = useCallback(async () => {
     if (!supabase || !zone.id) return;
@@ -77,6 +91,21 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
     fetchCollaborators();
   }, [fetchCollaborators]);
 
+  useEffect(() => {
+    const search = async () => {
+        if (!supabase || !userId || !debouncedSearchQuery) {
+            setSearchResults([]);
+            return;
+        }
+        setIsSearching(true);
+        const results = await searchProfiles(supabase, debouncedSearchQuery, userId, [zone.owner_id, ...collaboratorUserIds]);
+        setSearchResults(results);
+        setIsSearching(false);
+    }
+    search();
+  }, [debouncedSearchQuery, supabase, userId, zone.owner_id, collaboratorUserIds]);
+
+
   const handleTitleChange = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!supabase || !isOwner || !zoneTitle.trim() || zoneTitle.trim() === zone.title) return;
@@ -110,38 +139,21 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
     setIsDeleting(false);
   }
 
-  const handleAddCollaborator = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!supabase || !userId || !newCollaboratorEmail.trim() || !isOwner) return;
+  const handleAddCollaborator = async () => {
+    if (!supabase || !userId || !selectedUser || !isOwner) return;
 
     setIsSubmitting(true);
     try {
-      const profile = await getProfileByEmail(supabase, newCollaboratorEmail.trim());
-      if (!profile) {
-        toast.error('User not found. Please check the email address.');
-        return;
-      }
-
-      if (profile.id === zone.owner_id) {
-        toast.error('You cannot add the owner as a collaborator.');
-        return;
-      }
-
-      if (collaborators.some(c => c.user_id === profile.id)) {
-        toast.error('This user is already a collaborator.');
-        return;
-      }
-      
       await addCollaborator(supabase, {
         memory_zone_id: zone.id!,
-        user_id: profile.id,
+        user_id: selectedUser.id,
         permission_level: 'view',
         invited_by: userId
       });
       
-      console.log(`User ${profile.email} added as a collaborator to memory zone ${zone.id} with permission level 'view'. Invited by ${userId}.`);
-      toast.success(`${profile.email} has been added as a collaborator.`);
-      setNewCollaboratorEmail('');
+      toast.success(`${selectedUser.email} has been added as a collaborator.`);
+      setSelectedUser(null);
+      setSearchQuery("");
       await fetchCollaborators();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -201,20 +213,59 @@ export function MemoryZoneSettings({ zone, onUpdate }: MemoryZoneSettingsProps) 
             </CardHeader>
             <CardContent className="space-y-6">
                 {isOwner && (
-                    <form onSubmit={handleAddCollaborator} className="flex items-center gap-2">
-                    <Input
-                        type="email"
-                        placeholder="new-collaborator@email.com"
-                        value={newCollaboratorEmail}
-                        onChange={(e) => setNewCollaboratorEmail(e.target.value)}
-                        disabled={isSubmitting}
-                        className="flex-grow"
-                    />
-                    <Button type="submit" disabled={isSubmitting || !newCollaboratorEmail.trim()}>
-                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                        Add
-                    </Button>
-                    </form>
+                    <div className="flex items-center gap-2">
+                        <Popover open={isSearchPopoverOpen} onOpenChange={setIsSearchPopoverOpen}>
+                            <PopoverTrigger asChild>
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-expanded={isSearchPopoverOpen}
+                                    className="w-full justify-between flex-grow"
+                                    disabled={isSubmitting}
+                                >
+                                    {selectedUser
+                                        ? selectedUser.username || selectedUser.email
+                                        : "Search by email or username..."}
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                <Command shouldFilter={false}>
+                                    <CommandInput 
+                                        placeholder="Search users..."
+                                        value={searchQuery}
+                                        onValueChange={setSearchQuery}
+                                    />
+                                    <CommandList>
+                                        {isSearching && <div className="p-2 text-center text-sm text-muted-foreground">Searching...</div>}
+                                        <CommandEmpty>{!isSearching && debouncedSearchQuery && "No user found."}</CommandEmpty>
+                                        <CommandGroup>
+                                            {searchResults.map((user) => (
+                                                <CommandItem
+                                                    key={user.id}
+                                                    value={user.email!}
+                                                    onSelect={() => {
+                                                        setSelectedUser(user);
+                                                        setSearchQuery('');
+                                                        setIsSearchPopoverOpen(false);
+                                                    }}
+                                                >
+                                                    <div>
+                                                        <p className="font-medium">{user.username || 'No username'}</p>
+                                                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                                                    </div>
+                                                </CommandItem>
+                                            ))}
+                                        </CommandGroup>
+                                    </CommandList>
+                                </Command>
+                            </PopoverContent>
+                        </Popover>
+                        <Button onClick={handleAddCollaborator} disabled={isSubmitting || !selectedUser}>
+                            {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                            Add
+                        </Button>
+                    </div>
                 )}
 
                 <div className="space-y-4">

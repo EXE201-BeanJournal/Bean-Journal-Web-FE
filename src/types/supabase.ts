@@ -281,8 +281,6 @@ export interface LinkedInShare {
   share_text_snippet?: string; // TEXT
 }
 
-export type CollaboratorProfile = Pick<Profile, 'id' | 'username' | 'email'>;
-
 export interface MemoryZone {
   id?: string; // UUID
   owner_id: string; // TEXT
