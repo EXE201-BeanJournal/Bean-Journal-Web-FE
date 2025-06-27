@@ -5,6 +5,7 @@ import { ClerkAndThemeProvider } from "../main";
 import { NotFoundPageContent } from "./__404";
 import { useEffect } from "react";
 import { useAuthProtection } from "@/utils/authUtils";
+import ChatWidget from "@/components/BeanJournalWidget/ChatWidget";
 
 export const Route = createRootRoute({
   component: LandingRoot,
@@ -33,6 +34,7 @@ function LandingRoot() {
         {/* Footer - Conditionally rendered */}
         {/* <TanStackRouterDevtools /> */}
       </div>
+      <ChatWidget />
     </ClerkAndThemeProvider>
   );
 }
@@ -41,4 +43,4 @@ function LandingRoot() {
 function AuthProtector() {
   useAuthProtection();
   return null;
-} 
+}

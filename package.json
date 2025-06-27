@@ -84,7 +84,7 @@
 		"react-spotify-embed": "^2.0.4",
 		"react-use-measure": "^2.1.7",
 		"react-youtube": "^10.1.0",
-		"recharts": "^3.0.0",
+		"recharts": "^3.0.2",
 		"satori": "^0.14.0",
 		"satori-html": "^0.3.2",
 		"sonner": "^2.0.5",

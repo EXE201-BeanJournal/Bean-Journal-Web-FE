@@ -11,14 +11,12 @@ import { ThemeProvider as ShadThemeProvider } from "@/components/shared/ThemePro
 // Import your custom ThemeProvider for application themes
 import { ThemeProvider as CustomThemeProvider } from './contexts/ThemeContext';
 
-// Import the Supabase Provider
+// Import the Supabase Providers
 import { SupabaseProvider } from './contexts/SupabaseContext';
+import { SupportSupabaseProvider } from './contexts/SupportSupabaseContext';
 
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
-
-// Import the Bean Journal Widget
-import ChatWidget from "./components/BeanJournalWidget/ChatWidget";
 
 //global styles
 import "./index.css";
@@ -69,11 +67,13 @@ export function ClerkAndThemeProvider({ children }: { children: React.ReactNode 
 			// afterSignUpUrl="/sign-up/continue" // Deprecated, use fallback/force instead
 		>
 			<ShadThemeProvider defaultTheme="light" storageKey="vite-ui-theme">
-				<SupabaseProvider>
+			<SupabaseProvider>
+				<SupportSupabaseProvider>
 					{children}
 					<Toaster />
-				</SupabaseProvider>
-			</ShadThemeProvider>
+				</SupportSupabaseProvider>
+			</SupabaseProvider>
+		</ShadThemeProvider>
 		</ClerkProvider>
 	);
 }
@@ -86,8 +86,7 @@ if (!rootElement.innerHTML) {
 		<StrictMode>
 			<HelmetProvider>
 				<CustomThemeProvider>
-						<RouterProvider router={router} />
-						<ChatWidget />
+					<RouterProvider router={router} />
 				</CustomThemeProvider>
 			</HelmetProvider>
 		</StrictMode>,

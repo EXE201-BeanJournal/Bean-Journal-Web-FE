@@ -1,9 +1,15 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
 import { toast } from 'sonner';
+import { X } from 'lucide-react';
 
-const FeedbackForm = () => {
+interface FeedbackFormProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const FeedbackForm: React.FC<FeedbackFormProps> = ({ isOpen = true, onClose }) => {
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -31,8 +37,19 @@ const FeedbackForm = () => {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+    <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200 relative">
+      {onClose && (
+        <button
+          onClick={onClose}
+          className="absolute top-2 right-2 text-blue-600 hover:text-blue-800"
+          aria-label="Close feedback form"
+        >
+          <X size={16} />
+        </button>
+      )}
       <h3 className="font-semibold text-blue-800 mb-2">Have feedback?</h3>
       <p className="text-sm text-blue-700 mb-3">We'd love to hear it. Let us know how we can improve the Bean Journal AI assistant.</p>
       <Textarea

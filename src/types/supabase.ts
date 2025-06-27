@@ -316,4 +316,40 @@ export interface MemoryZoneCollaborator {
   invited_by?: string; // TEXT
   joined_at?: string; // TIMESTAMPTZ
   created_at?: string; // TIMESTAMPTZ
-} 
+}
+
+// Support system interfaces
+export interface SupportAgent {
+  id: string; // TEXT PRIMARY KEY
+  name: string; // TEXT NOT NULL
+  email?: string; // TEXT
+  image?: string; // TEXT
+  is_online?: boolean; // BOOLEAN DEFAULT FALSE
+  last_seen?: string; // TIMESTAMPTZ
+  created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
+  updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
+}
+
+export interface SupportSession {
+  id: string; // TEXT PRIMARY KEY
+  user_id: string; // TEXT NOT NULL
+  user_name?: string; // TEXT
+  user_image?: string; // TEXT
+  agent_id?: string; // TEXT REFERENCES support_agents(id)
+  agent_name?: string; // TEXT
+  status: 'waiting' | 'connected' | 'ended'; // TEXT NOT NULL
+  created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
+  updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
+  ended_at?: string; // TIMESTAMPTZ
+}
+
+export interface SupportMessage {
+  id: string; // TEXT PRIMARY KEY
+  session_id: string; // TEXT NOT NULL REFERENCES support_sessions(id)
+  content: string; // TEXT NOT NULL
+  sender: 'user' | 'agent' | 'system'; // TEXT NOT NULL
+  user_id?: string; // TEXT
+  agent_id?: string; // TEXT REFERENCES support_agents(id)
+  timestamp?: string; // TIMESTAMPTZ DEFAULT NOW()
+  created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
+}

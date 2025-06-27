@@ -2,13 +2,13 @@ import { createContext, useContext, useMemo, ReactNode } from 'react';
 import { SupabaseClient, createClient } from '@supabase/supabase-js';
 import { useAuth } from '@clerk/clerk-react';
 
-interface SupabaseContextType {
+interface SupportSupabaseContextType {
   supabase: SupabaseClient | null;
 }
 
-const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
+const SupportSupabaseContext = createContext<SupportSupabaseContextType | undefined>(undefined);
 
-export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
+export const SupportSupabaseProvider = ({ children }: { children: ReactNode }) => {
   const { getToken } = useAuth();
 
   const supabase = useMemo(() => {
@@ -31,7 +31,7 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
     try {
       return createClient(supabaseUrl, supabaseAnonKey, {
         db: {
-          schema: 'public'  // Explicitly use the public schema for journal functionality
+          schema: 'bean_ai_realtime'  // Use the bean_ai_realtime schema for support features
         },
         global: {
           fetch: async (url, options = {}) => {
@@ -53,23 +53,23 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
         }
       });
     } catch (error) {
-      console.error("Failed to create Supabase client in provider:", error);
+      console.error("Failed to create Support Supabase client in provider:", error);
       return null;
     }
   }, [getToken]);
 
   return (
-    <SupabaseContext.Provider value={{ supabase }}>
+    <SupportSupabaseContext.Provider value={{ supabase: supabase as SupabaseClient | null }}>
       {children}
-    </SupabaseContext.Provider>
+    </SupportSupabaseContext.Provider>
   );
 };
 
 // eslint-disable-next-line react-refresh/only-export-components
-export const useSupabase = (): SupabaseClient | null => {
-  const context = useContext(SupabaseContext);
+export const useSupportSupabase = (): SupabaseClient | null => {
+  const context = useContext(SupportSupabaseContext);
   if (context === undefined) {
-    throw new Error('useSupabase must be used within a SupabaseProvider. Make sure the component is a child of SupabaseProvider.');
+    throw new Error('useSupportSupabase must be used within a SupportSupabaseProvider. Make sure the component is a child of SupportSupabaseProvider.');
   }
   return context.supabase;
 };
