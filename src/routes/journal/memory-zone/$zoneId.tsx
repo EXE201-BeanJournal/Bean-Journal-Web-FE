@@ -1,8 +1,8 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { useSupabase } from '@/contexts/SupabaseContext';
 import { getMemoryZoneById } from '@/services/memoryZoneService';
-import { MemoryZone } from '@/types/supabase';
+import { MemoryZone, MemoryZoneCollaborator } from '@/types/supabase';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/Button';
 import { ArrowLeft, Settings } from 'lucide-react';
@@ -36,6 +36,7 @@ export const Route = createFileRoute('/journal/memory-zone/$zoneId')({
 
 function MemoryZoneDetailPage() {
   const { zoneId } = Route.useParams();
+  const navigate = useNavigate({ from: Route.fullPath });
   const supabase = useSupabase();
   const { userId, isLoaded } = useAuth();
   const { user } = useUser();
@@ -204,23 +205,31 @@ function MemoryZoneDetailPage() {
     setError(null);
     try {
       const zoneData = await getMemoryZoneById(supabase, zoneId!);
-
+      
       if (!zoneData) {
-        setError('Memory zone not found or you do not have access.');
+        setError('Memory zone not found.');
         setIsEditable(false);
-      } else {
-        setZone(zoneData);
-        if (zoneData.owner_id === userId) {
-            setIsEditable(true);
-        } else {
-            const collaborator = await getCollaborator(supabase, zoneId!, userId);
-            if (collaborator && collaborator.permission_level === 'edit') {
-                setIsEditable(true);
-            } else {
-                setIsEditable(false);
-            }
-        }
+        setZone(null);
+        toast.error("Memory zone not found or has been deleted.", { description: "Redirecting..."});
+        navigate({ to: '/journal/memory-zone'});
+        return;
       }
+
+      const isOwner = zoneData.owner_id === userId;
+      const collaborator = isOwner ? null : await getCollaborator(supabase, zoneId!, userId);
+
+      if (isOwner || collaborator) {
+        setZone(zoneData);
+        setIsEditable(isOwner || (collaborator?.permission_level === 'edit'));
+      } else {
+        // Not owner, not collaborator. Access denied.
+        setError('You do not have access to this memory zone.');
+        setZone(null);
+        setIsEditable(false);
+        toast.warning("Your access to this zone was removed.", { description: "Redirecting..." });
+        navigate({ to: '/journal/memory-zone' });
+      }
+
     } catch (e) {
       console.error("Error fetching zone data:", e);
       setError(e instanceof Error ? e.message : 'An unexpected error occurred.');
@@ -228,7 +237,7 @@ function MemoryZoneDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [zoneId, supabase, userId, isLoaded]);
+  }, [zoneId, supabase, userId, isLoaded, navigate]);
 
   useEffect(() => {
     if (!supabase || !isLoaded) return;
@@ -241,6 +250,48 @@ function MemoryZoneDetailPage() {
 
     fetchZoneData();
   }, [zoneId, supabase, userId, isLoaded, fetchZoneData]);
+
+  useEffect(() => {
+    if (!supabase || !zoneId || !userId) return;
+
+    // Listen for the current zone being deleted.
+    const zoneDeleteChannel = supabase.channel(`zone-delete-${zoneId}`)
+      .on('postgres_changes', {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'memory_zones',
+          filter: `id=eq.${zoneId}`
+      }, () => {
+          toast.info("This memory zone has been deleted.", {
+              description: "You will be redirected to your zones list."
+          });
+          navigate({ to: '/journal/memory-zone' });
+      }).subscribe();
+
+    // Listen for changes in collaborators for this zone.
+    // This will handle permission changes or if the current user is removed.
+    const collaboratorChannel = supabase.channel(`zone-collaborators-${zoneId}`)
+      .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'memory_zone_collaborators',
+          filter: `memory_zone_id=eq.${zoneId}`
+      }, (payload) => {
+          console.log('Collaborator change detected:', payload);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const updatedCollaborator = payload.new as MemoryZoneCollaborator;
+            if (updatedCollaborator.user_id === userId) {
+              toast.info("Your permissions have been updated.");
+            }
+          }
+          fetchZoneData();
+      }).subscribe();
+
+    return () => {
+        supabase.removeChannel(zoneDeleteChannel);
+        supabase.removeChannel(collaboratorChannel);
+    };
+}, [supabase, zoneId, userId, fetchZoneData, navigate]);
 
   if (isLoading || !isLoaded) {
     return (
