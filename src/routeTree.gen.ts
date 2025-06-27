@@ -30,6 +30,7 @@ import { Route as JournalTodoImport } from './routes/journal/todo'
 import { Route as JournalDiaryImport } from './routes/journal/diary'
 import { Route as JournalDashboardImport } from './routes/journal/dashboard'
 import { Route as JournalBeanJourneyImport } from './routes/journal/bean-journey'
+import { Route as BlogSlugImport } from './routes/blog/$slug'
 import { Route as JournalMemoryZoneIndexImport } from './routes/journal/memory-zone/index'
 import { Route as JournalProjectProjectIdImport } from './routes/journal/project/$projectId'
 import { Route as JournalMemoryZoneZoneIdImport } from './routes/journal/memory-zone/$zoneId'
@@ -149,6 +150,12 @@ const JournalBeanJourneyRoute = JournalBeanJourneyImport.update({
   getParentRoute: () => JournalRoute,
 } as any)
 
+const BlogSlugRoute = BlogSlugImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => BlogRoute,
+} as any)
+
 const JournalMemoryZoneIndexRoute = JournalMemoryZoneIndexImport.update({
   id: '/memory-zone/',
   path: '/memory-zone/',
@@ -241,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ThemeShopImport
       parentRoute: typeof rootRoute
     }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugImport
+      parentRoute: typeof BlogImport
+    }
     '/journal/bean-journey': {
       id: '/journal/bean-journey'
       path: '/bean-journey'
@@ -330,6 +344,16 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
+interface BlogRouteChildren {
+  BlogSlugRoute: typeof BlogSlugRoute
+}
+
+const BlogRouteChildren: BlogRouteChildren = {
+  BlogSlugRoute: BlogSlugRoute,
+}
+
+const BlogRouteWithChildren = BlogRoute._addFileChildren(BlogRouteChildren)
+
 interface JournalRouteChildren {
   JournalBeanJourneyRoute: typeof JournalBeanJourneyRoute
   JournalDashboardRoute: typeof JournalDashboardRoute
@@ -383,13 +407,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '': typeof R404Route
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
+  '/blog': typeof BlogRouteWithChildren
   '/features': typeof FeaturesRoute
   '/journal': typeof JournalRouteWithChildren
   '/pricing': typeof PricingRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -408,12 +433,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '': typeof R404Route
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
+  '/blog': typeof BlogRouteWithChildren
   '/features': typeof FeaturesRoute
   '/pricing': typeof PricingRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -433,13 +459,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/__404': typeof R404Route
   '/about': typeof AboutRoute
-  '/blog': typeof BlogRoute
+  '/blog': typeof BlogRouteWithChildren
   '/features': typeof FeaturesRoute
   '/journal': typeof JournalRouteWithChildren
   '/pricing': typeof PricingRoute
   '/sign-in': typeof SignInRouteWithChildren
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -467,6 +494,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/theme-shop'
+    | '/blog/$slug'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -490,6 +518,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/theme-shop'
+    | '/blog/$slug'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -514,6 +543,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/theme-shop'
+    | '/blog/$slug'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -533,7 +563,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   R404Route: typeof R404Route
   AboutRoute: typeof AboutRoute
-  BlogRoute: typeof BlogRoute
+  BlogRoute: typeof BlogRouteWithChildren
   FeaturesRoute: typeof FeaturesRoute
   JournalRoute: typeof JournalRouteWithChildren
   PricingRoute: typeof PricingRoute
@@ -547,7 +577,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   R404Route: R404Route,
   AboutRoute: AboutRoute,
-  BlogRoute: BlogRoute,
+  BlogRoute: BlogRouteWithChildren,
   FeaturesRoute: FeaturesRoute,
   JournalRoute: JournalRouteWithChildren,
   PricingRoute: PricingRoute,
@@ -590,7 +620,10 @@ export const routeTree = rootRoute
       "filePath": "about.tsx"
     },
     "/blog": {
-      "filePath": "blog.tsx"
+      "filePath": "blog.tsx",
+      "children": [
+        "/blog/$slug"
+      ]
     },
     "/features": {
       "filePath": "features.tsx"
@@ -626,6 +659,10 @@ export const routeTree = rootRoute
     },
     "/theme-shop": {
       "filePath": "theme-shop.tsx"
+    },
+    "/blog/$slug": {
+      "filePath": "blog/$slug.tsx",
+      "parent": "/blog"
     },
     "/journal/bean-journey": {
       "filePath": "journal/bean-journey.tsx",

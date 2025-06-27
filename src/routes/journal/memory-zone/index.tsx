@@ -10,10 +10,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { MemoryZone } from '@/types/supabase';
 import { MemoryZoneSettings } from '@/components/journal/MemoryZoneSettings';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { toast } from 'sonner';
 
 export const Route = createFileRoute('/journal/memory-zone/')({
   component: MemoryZoneListPage,
@@ -81,7 +82,7 @@ function MemoryZoneListPage() {
   const ownedZones = memoryZones.filter((zone) => zone.owner_id === userId);
   const sharedZones = memoryZones.filter((zone) => zone.owner_id !== userId);
 
-  const fetchMemoryZones = async () => {
+  const fetchMemoryZones = useCallback(async () => {
     if (!supabase || !userId) return;
 
     setIsLoading(true);
@@ -97,14 +98,64 @@ function MemoryZoneListPage() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [supabase, userId]);
 
   useEffect(() => {
     if (isLoaded) {
       fetchMemoryZones();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, userId, isLoaded]);
+  }, [fetchMemoryZones, isLoaded]);
+
+  useEffect(() => {
+    if (!supabase || !userId) return;
+
+    // Listen for changes to the user's collaboration invites
+    const collaboratorChannel = supabase
+      .channel('user-collaborations')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'memory_zone_collaborators',
+          filter: `user_id=eq.${userId}`,
+        },
+        (payload) => {
+          console.log('Collaboration change detected:', payload);
+          toast.info("Your list of shared zones is being updated.");
+          fetchMemoryZones();
+        }
+      )
+      .subscribe();
+    
+    // NOTE: For the following to work reliably, you must enable REPLICA IDENTITY on your 'memory_zones' table.
+    // You can do this by running: ALTER TABLE memory_zones REPLICA IDENTITY FULL;
+    // This ensures that the 'old' record in a DELETE event contains all columns, including 'owner_id'.
+    const zonesChannel = supabase
+      .channel('owned-zones-delete')
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'memory_zones',
+        },
+        (payload) => {
+          const oldRecord = payload.old as Partial<MemoryZone> & { id: string };
+          if (oldRecord.owner_id === userId) {
+            console.log('An owned zone was deleted:', payload);
+            toast.info("An owned memory zone was deleted.");
+            fetchMemoryZones();
+          }
+        }
+      ).subscribe();
+
+
+    return () => {
+      supabase.removeChannel(collaboratorChannel);
+      supabase.removeChannel(zonesChannel);
+    };
+  }, [supabase, userId, fetchMemoryZones]);
 
   const handleCreateZone = async (e: React.FormEvent) => {
     e.preventDefault();

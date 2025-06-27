@@ -207,3 +207,28 @@
 
 /* Removed #root and other potentially global styles */
 /* .star-field can likely be removed if StarryBackground handles it */ 
+
+.landing-page-theme .cta-glow::before {
+    animation: cta-glow 5s ease-in-out infinite;
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    opacity: 0.2;
+    background-image: radial-gradient(circle at 50% 50%, hsl(var(--primary) / 0.5), transparent);
+    background-size: 200% 200%;
+    filter: blur(40px);
+}
+
+/* Custom styles for blog post content */
+.post-content .lead {
+    @apply text-xl text-muted-foreground;
+}
+
+.post-content figure {
+    @apply my-8;
+}
+
+.post-content figcaption {
+    @apply text-center text-sm text-muted-foreground mt-2;
+} 

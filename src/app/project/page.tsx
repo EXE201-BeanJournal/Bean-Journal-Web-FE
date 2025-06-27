@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { getProjectById } from "@/services/projectService";
-import { getJournalEntriesByProjectId } from "@/services/journalEntryService"; // Corrected service import path
-import type { Project, JournalEntry } from "@/types/supabase";
-import { useSupabase } from "@/contexts/SupabaseContext"; // Import useSupabase
+import { getJournalEntriesByProjectId } from "@/services/journalEntryService";
+import type { Project, JournalEntry, TodoItem } from "@/types/supabase";
+import { useSupabase } from "@/contexts/SupabaseContext";
 import { Link } from "@tanstack/react-router";
-import { CalendarDays, CheckCircle2, Circle, ListTodo } from "lucide-react"; // Added for date display and todos
-import { moodOptions } from "@/components/diary/MoodSelector"; // Added for mood display
-import { Image as ImageIcon } from "lucide-react"; // Added for image display
+import {
+  CalendarDays,
+  CheckCircle2,
+  Circle,
+  ListTodo,
+  Plus,
+  BookText,
+} from "lucide-react";
+import { moodOptions } from "@/components/diary/MoodSelector";
+import { Image as ImageIcon } from "lucide-react";
 import { ProjectPageSkeleton } from "@/components/skeletons/ProjectPageSkeleton";
 
 // Helper function to parse BlockNote JSON content (copied from user-profile/page.tsx)
@@ -59,7 +66,7 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = useSupabase(); // New way
+  const supabase = useSupabase();
 
   useEffect(() => {
     if (!projectId || !supabase) {
@@ -77,17 +84,17 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
       setError(null);
 
       try {
-        const projectData = await getProjectById(supabase, projectId);
-        setProject(projectData);
+        const [projectData, entriesData] = await Promise.all([
+          getProjectById(supabase, projectId),
+          getJournalEntriesByProjectId(supabase, projectId),
+        ]);
 
-        if (projectData && projectData.id) {
-          const entriesData = await getJournalEntriesByProjectId(
-            supabase,
-            projectData.id
-          );
+        if (projectData) {
+          setProject(projectData);
           setJournalEntries(entriesData || []);
         } else {
           setError("Project not found.");
+          setProject(null);
           setJournalEntries([]);
         }
       } catch (err) {
@@ -107,21 +114,20 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
     return <ProjectPageSkeleton />;
   }
 
-  if (error && !project) {
-    // Show error if project loading failed and project is still null
+  if (error) {
     return <div className="p-4 text-center text-red-500">{error}</div>;
   }
 
   if (!project) {
-    // This case should ideally be covered by the error state if fetching failed
-    // or if project just wasn't found (which sets an error too).
-    // Adding a generic message if somehow reached.
     return (
       <div className="p-4 text-center">
         Project could not be loaded or found.
       </div>
     );
   }
+  
+  const allTodos = journalEntries.flatMap((entry) => entry.todo_items || []);
+  const completedTodosCount = allTodos.filter((t) => t.is_completed).length;
 
   const formatDate = (isoString?: string) => {
     if (!isoString) return "N/A";
@@ -137,29 +143,43 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 flex flex-col gap-6 bg-gray-50 dark:bg-gray-900 h-[calc(100vh-100px)]">
-      <div className="overflow-hidden shadow-lg bg-white dark:bg-gray-800 rounded-lg">
-        <div
-          style={{ backgroundColor: project.color_hex || "#7DD3FC" }}
-          className="h-10 w-full"
-        ></div>
-        <div className="p-4 md:p-6">
-          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white">
-            {project.name}
-          </h1>
-          {project.description && (
-            <p className="text-sm md:text-md text-gray-600 dark:text-gray-300 pt-2">
-              {project.description}
-            </p>
-          )}
-        </div>
-        <div className="px-4 md:px-6 pb-4">
-          <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400">
-            Created on: {formatDate(project.created_at)}
+    <div className="container mx-auto p-4 md:p-6 h-full flex flex-col gap-6">
+      {/* Project Header */}
+      <header className="p-4 md:p-5 bg-white dark:bg-gray-800 rounded-lg shadow-md flex-shrink-0">
+        <div className="flex justify-between items-start gap-4">
+          <div className="flex items-center gap-3 flex-grow">
+            <div
+              className="w-8 h-8 rounded-full flex-shrink-0"
+              style={{ backgroundColor: project.color_hex || "#7DD3FC" }}
+            ></div>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-800 dark:text-white truncate">
+              {project.name}
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button className="px-3 py-1.5 text-sm font-semibold rounded-md shadow-sm flex items-center gap-1.5 bg-sky-500 text-white hover:bg-sky-600 transition-colors">
+              <Plus size={16} /> New Entry
+            </button>
           </div>
         </div>
-      </div>
-
+        {project.description && (
+          <p className="text-sm md:text-md text-gray-600 dark:text-gray-300 pt-3">
+            {project.description}
+          </p>
+        )}
+        <div className="text-xs md:text-sm text-gray-500 dark:text-gray-400 pt-3 flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <BookText size={14} />
+            {journalEntries.length} Journal Entries
+          </span>
+          <span className="flex items-center gap-1.5">
+            <ListTodo size={14} />
+            {allTodos.length} To-Do Items ({completedTodosCount} Complete)
+          </span>
+        </div>
+      </header>
+      
+      {/* Main Content Area - Original Card Layout */}
       <section className="flex-grow min-h-0 overflow-y-auto">
         <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-200">
           Associated Diaries
@@ -252,7 +272,7 @@ const ProjectPage: React.FC<ProjectPageProps> = ({ projectId }) => {
                         </span>
                       </div>
                       <ul className="space-y-1.5">
-                        {todos.slice(0, 3).map((todo) => ( // Show max 3 todos
+                        {todos.slice(0, 3).map((todo: TodoItem) => ( // Show max 3 todos
                           <li
                             key={todo.id}
                             className="flex items-center text-sm text-slate-600 dark:text-slate-300"
