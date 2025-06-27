@@ -21,7 +21,6 @@ import * as Y from "yjs";
 import YPartyKitProvider from "y-partykit/provider";
 import { addAttachment, getAttachmentByFilePath, deleteAttachment } from '@/services/memoryZoneMediaAttachmentService';
 import { getCollaborator } from '@/services/memoryZoneCollaboratorService';
-import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 const userColors = [
     "#ff6b6b", "#f06595", "#cc5de8", "#845ef7", "#5c7cfa",
@@ -243,54 +242,6 @@ function MemoryZoneDetailPage() {
     fetchZoneData();
   }, [zoneId, supabase, userId, isLoaded, fetchZoneData]);
 
-  useEffect(() => {
-    if (!supabase || !zoneId || !userId) return;
-
-    const handlePermissionsChange = (payload: RealtimePostgresChangesPayload<{ user_id: string }>) => {
-      let record: Partial<{ user_id: string }>;
-
-      switch (payload.eventType) {
-        case 'INSERT':
-        case 'UPDATE':
-          record = payload.new;
-          break;
-        case 'DELETE':
-          record = payload.old;
-          break;
-        default:
-          return;
-      }
-
-      if (record && record.user_id && record.user_id === userId) {
-        toast.info("Your permissions for this memory zone have changed. Updating view.");
-        fetchZoneData();
-      }
-    };
-
-    const channel = supabase
-      .channel(`collaborator-permissions-listener:${zoneId}:${userId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'memory_zone_collaborators',
-          filter: `memory_zone_id=eq.${zoneId}`,
-        },
-        handlePermissionsChange
-      )
-      .subscribe((status, err) => {
-        if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime subscription error:', err);
-          toast.error("Could not sync permissions in real-time.");
-        }
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [supabase, zoneId, userId, fetchZoneData]);
-  
   if (isLoading || !isLoaded) {
     return (
       <div className="container mx-auto p-4 sm:p-6 lg:p-8">
