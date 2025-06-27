@@ -1,19 +1,17 @@
 import { SupabaseClient } from '@supabase/supabase-js';
-import { Profile, CollaboratorProfile } from '../types/supabase';
+import { Profile } from '../types/supabase';
 import { toast } from 'sonner';
 
 // --- Profile Functions ---
 
 const TABLE_NAME = 'profiles';
 
-export const getProfileByEmail = async (supabase: SupabaseClient, email: string): Promise<CollaboratorProfile | null> => {
+export const getProfileByEmail = async (supabase: SupabaseClient, email: string): Promise<Profile | null> => {
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('id, email, username')
+        .select('*')
         .eq('email', email)
         .single();
-
-    console.log('data', data);
 
     if (error && error.code !== 'PGRST116') { // PGRST116: "exact one row not found"
         console.error('Error fetching profile by email:', error);
@@ -23,14 +21,14 @@ export const getProfileByEmail = async (supabase: SupabaseClient, email: string)
     return data;
 };
 
-export const getProfilesByIds = async (supabase: SupabaseClient, userIds: string[]): Promise<CollaboratorProfile[]> => {
+export const getProfilesByIds = async (supabase: SupabaseClient, userIds: string[]): Promise<Profile[]> => {
     if (!userIds || userIds.length === 0) {
         return [];
     }
     
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('id, email, username')
+        .select('*')
         .in('id', userIds);
 
     if (error) {
@@ -40,10 +38,10 @@ export const getProfilesByIds = async (supabase: SupabaseClient, userIds: string
     return data || [];
 }
 
-export const getProfileById = async (supabase: SupabaseClient, userId: string): Promise<CollaboratorProfile | null> => {
+export const getProfileById = async (supabase: SupabaseClient, userId: string): Promise<Profile | null> => {
     const { data, error } = await supabase
         .from(TABLE_NAME)
-        .select('id, email, username')
+        .select('*')
         .eq('id', userId)
         .single();
     
@@ -54,6 +52,31 @@ export const getProfileById = async (supabase: SupabaseClient, userId: string): 
 
     return data;
 }
+
+export const searchProfiles = async (supabase: SupabaseClient, searchText: string, currentUserId: string, collaboratorIds: string[], limit = 5): Promise<Profile[]> => {
+    if (!searchText.trim()) return [];
+
+    let query = supabase
+        .from(TABLE_NAME)
+        .select('*')
+        .or(`email.ilike.%${searchText}%,username.ilike.%${searchText}%`)
+        .neq('id', currentUserId) // Exclude current user
+        .limit(limit);
+
+    if (collaboratorIds.length > 0) {
+        query = query.not('id', 'in', `(${collaboratorIds.join(',')})`);
+    }
+
+    const { data, error } = await query;
+    
+    if (error) {
+        console.error('Error searching profiles:', error);
+        toast.error('Failed to search for users.');
+        return [];
+    }
+
+    return data || [];
+};
 
 export const getProfileByUserId = async (supabase: SupabaseClient, userId: string) => {
   try {
