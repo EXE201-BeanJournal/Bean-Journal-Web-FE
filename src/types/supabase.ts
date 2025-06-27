@@ -338,6 +338,7 @@ export interface SupportSession {
   agent_id?: string; // TEXT REFERENCES support_agents(id)
   agent_name?: string; // TEXT
   status: 'waiting' | 'connected' | 'ended'; // TEXT NOT NULL
+  ai_conversation_history?: string; // TEXT - JSON string containing AI chat history
   created_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   updated_at?: string; // TIMESTAMPTZ DEFAULT NOW()
   ended_at?: string; // TIMESTAMPTZ

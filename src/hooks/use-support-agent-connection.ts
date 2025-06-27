@@ -27,6 +27,7 @@ export interface SupportSession {
   agentName?: string;
   agentImage?: string;
   status: 'waiting' | 'connected' | 'ended';
+  aiConversationHistory?: string;
   messages: SupportMessage[];
   createdAt: Date;
 }
@@ -89,6 +90,9 @@ export const useSupportAgentConnection = () => {
               agentImage,
               status: 'connected'
             } : null);
+            
+            // Stop connecting state when agent connects
+            setIsConnecting(false);
           }
         })
         .on('broadcast', { event: 'support-message' }, async (payload) => {
@@ -143,6 +147,9 @@ export const useSupportAgentConnection = () => {
               ...prev,
               status: 'ended'
             } : null);
+            
+            // Reset connecting state when session ends
+            setIsConnecting(false);
           }
         })
         .on('presence', { event: 'sync' }, () => {
@@ -179,8 +186,8 @@ export const useSupportAgentConnection = () => {
   }, [user, currentSessionId]);
 
   // Request support from available agents
-  const requestSupport = useCallback(async (initialMessage?: string) => {
-    if (!channel || !user || currentSession) return null;
+  const requestSupport = useCallback(async (initialMessage?: string, aiConversationHistory?: Array<{type: 'user' | 'bot'; content: string; timestamp?: Date}>) => {
+    if (!channel || !user || (currentSession && currentSession.status !== 'ended')) return null;
 
     setIsConnecting(true);
     const sessionId = `session_${Date.now()}_${user.id}`;
@@ -204,6 +211,7 @@ export const useSupportAgentConnection = () => {
           user_name: user.fullName || 'Anonymous User',
           user_image: user.imageUrl || null,
           status: 'waiting',
+          ai_conversation_history: aiConversationHistory ? JSON.stringify(aiConversationHistory) : null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         });
@@ -215,6 +223,36 @@ export const useSupportAgentConnection = () => {
       }
 
       setCurrentSession(newSession);
+
+      const allMessages: SupportMessage[] = [];
+
+      // Add AI conversation history as context messages
+      if (aiConversationHistory && aiConversationHistory.length > 0) {
+        const contextMessage: SupportMessage = {
+          id: `msg_context_${Date.now()}`,
+          content: `Previous AI Conversation:\n${aiConversationHistory.map(msg => `${msg.type === 'user' ? 'User' : 'AI Assistant'}: ${msg.content}`).join('\n')}`,
+          sender: 'system',
+          timestamp: new Date()
+        };
+        
+        // Save context message to database
+        const { error: contextError } = await supabase!
+          .from('support_messages')
+          .insert({
+            id: contextMessage.id,
+            session_id: sessionId,
+            content: contextMessage.content,
+            sender: 'system',
+            timestamp: new Date().toISOString(),
+            created_at: new Date().toISOString()
+          });
+
+        if (contextError) {
+          console.error('Error saving context message:', contextError);
+        } else {
+          allMessages.push(contextMessage);
+        }
+      }
 
       // Add initial message if provided
       if (initialMessage) {
@@ -240,10 +278,12 @@ export const useSupportAgentConnection = () => {
 
         if (messageError) {
           console.error('Error saving initial message:', messageError);
+        } else {
+          allMessages.push(message);
         }
-        
-        setMessages([message]);
       }
+      
+      setMessages(allMessages);
 
       // Broadcast support request to agents
       await channel.send({
@@ -258,7 +298,23 @@ export const useSupportAgentConnection = () => {
         }
       });
 
-      setIsConnecting(false);
+      // Set timeout to stop connecting state if no agent responds within 30 seconds
+      setTimeout(() => {
+        if (currentSession && currentSession.status === 'waiting') {
+          setIsConnecting(false);
+          // Add timeout message
+          const timeoutMessage: SupportMessage = {
+            id: `msg_timeout_${Date.now()}`,
+            content: 'No agents are currently available. Please try again later or continue with the AI assistant.',
+            sender: 'system',
+            timestamp: new Date()
+          };
+          setMessages(prev => [...prev, timeoutMessage]);
+        }
+      }, 30000); // 30 seconds timeout
+
+      // Keep isConnecting true until agent connects or session times out
+      // setIsConnecting(false); // Removed - will be set to false when agent connects
       return sessionId;
     } catch (error) {
       console.error('Error requesting support:', error);
@@ -317,6 +373,9 @@ export const useSupportAgentConnection = () => {
     if (!currentSessionId || !supabase) return;
 
     try {
+      // Reset connecting state immediately when ending session
+      setIsConnecting(false);
+
       // Broadcast session end to admin dashboard
       if (channel) {
         await channel.send({
@@ -348,6 +407,8 @@ export const useSupportAgentConnection = () => {
       } : null);
     } catch (error) {
       console.error('Error ending session:', error);
+      // Ensure connecting state is reset even if there's an error
+      setIsConnecting(false);
     }
   }, [currentSessionId, supabase, channel]);
 

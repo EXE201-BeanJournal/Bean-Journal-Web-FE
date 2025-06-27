@@ -4,21 +4,29 @@ import { motion } from 'framer-motion';
 
 // 1. Define the Message interface
 interface Message {
-  type: 'user' | 'bot';
+  type: 'user' | 'bot' | 'agent' | 'system';
   content: string;
+  steps?: { action: string; result: string }[];
+  timestamp?: Date;
+  agentId?: string;
 }
 
 // 2. Define props for the ChatMessage component
 interface ChatMessageProps {
   message: Message;
+  agentName?: string;
+  agentImage?: string;
 }
 
 // 3. Main ChatMessage component
-const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
+const ChatMessage: React.FC<ChatMessageProps> = ({ message, agentName, agentImage }) => {
   const isBot = message.type === 'bot';
+  const isAgent = message.type === 'agent';
+  const isSystem = message.type === 'system';
+  const isUser = message.type === 'user';
 
   // Check if the message content contains a list of features
-  const isFeatureList = isBot && message.content.includes('\n- ');
+  const isFeatureList = (isBot || isAgent) && message.content.includes('\n- ');
 
   const renderContent = () => {
     // Extract plain text from JSON if present
@@ -83,10 +91,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       </p>
     );
   };
-  // 4. Determine if the message is from the user
-  const isUser = message.type === 'user';
-
-  // 5. Select the appropriate icon based on the message type
+  // 4. Select the appropriate icon based on the message type
   const Icon = isUser ? User : Bot;
 
   // 6. Do not render a chat bubble if there is no content to display
@@ -157,7 +162,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   // 8. Main JSX for the chat message with animations
   return (
     <motion.div 
-      className={`flex items-start gap-3 ${isUser ? 'justify-end' : ''}`}
+      className={`flex items-start gap-3 w-full ${isUser ? 'justify-end' : 'justify-start'}`}
       variants={messageVariants}
       initial="hidden"
       animate="visible"
@@ -165,25 +170,63 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
       {/* 9. Render animated icon for bot messages */}
       {!isUser && (
         <motion.div 
-          className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0"
+          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+            isBot ? 'bg-blue-100' : 
+            isAgent ? 'bg-green-100' :
+            isSystem ? 'bg-yellow-100' :
+            'bg-gray-200'
+          }`}
           variants={iconVariants}
           initial="hidden"
           animate="visible"
         >
-          <Icon className="w-5 h-5 text-gray-600" />
+          {isAgent && agentImage ? (
+            <img
+              src={agentImage}
+              alt={agentName || "Support Agent"}
+              className="w-8 h-8 rounded-full object-cover"
+            />
+          ) : isAgent && agentName ? (
+            <span className="text-white font-semibold text-sm">
+              {agentName.charAt(0).toUpperCase()}
+            </span>
+          ) : (
+            <Icon className={`w-5 h-5 ${
+              isBot ? 'text-blue-600' :
+              isAgent ? 'text-green-600' :
+              isSystem ? 'text-yellow-600' :
+              'text-gray-600'
+            }`} />
+          )}
         </motion.div>
       )}
 
       {/* 10. Render animated message content bubble */}
       <motion.div
-        className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg shadow-sm break-words ${isUser
-            ? 'bg-blue-500 text-white'
+        className={`max-w-xs md:max-w-md lg:max-w-lg px-4 py-2 rounded-lg shadow-sm break-words ${
+          isUser
+            ? 'bg-blue-500 text-white ml-auto'
+            : isAgent
+            ? 'bg-green-100 text-green-800 border border-green-200'
+            : isSystem
+            ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
             : 'bg-gray-100 text-gray-800'
-          }`}
+        }`}
         variants={bubbleVariants}
         initial="hidden"
         animate="visible"
       >
+        {/* Show agent name for agent messages */}
+        {isAgent && (
+          <div className="text-xs font-medium mb-1 text-green-600">
+            {agentName || "Support Agent"}
+          </div>
+        )}
+        {isSystem && (
+          <div className="text-xs font-medium mb-1 text-yellow-600">
+            System
+          </div>
+        )}
         {renderContent()}
       </motion.div>
 

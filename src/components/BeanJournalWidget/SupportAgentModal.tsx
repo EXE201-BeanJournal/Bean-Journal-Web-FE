@@ -8,9 +8,14 @@ import { cn } from '@/lib/utils';
 interface SupportAgentModalProps {
   isOpen: boolean;
   onClose: () => void;
+  aiConversationHistory?: Array<{
+    type: 'user' | 'bot';
+    content: string;
+    timestamp?: Date;
+  }>;
 }
 
-const SupportAgentModal: React.FC<SupportAgentModalProps> = ({ isOpen, onClose }) => {
+const SupportAgentModal: React.FC<SupportAgentModalProps> = ({ isOpen, onClose, aiConversationHistory = [] }) => {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const {
@@ -204,7 +209,13 @@ const SupportAgentModal: React.FC<SupportAgentModalProps> = ({ isOpen, onClose }
                 Need help? Connect with one of our support agents.
               </p>
               <Button
-                onClick={() => requestSupport()}
+                 onClick={() => {
+                   const initialMessage = aiConversationHistory.length > 0 
+                     ? 'User requesting human support after AI conversation'
+                     : 'User requesting support';
+                   
+                   requestSupport(initialMessage, aiConversationHistory);
+                 }}
                 disabled={isConnecting || availableAgents.length === 0}
                 className="bg-blue-600 hover:bg-blue-700"
               >
