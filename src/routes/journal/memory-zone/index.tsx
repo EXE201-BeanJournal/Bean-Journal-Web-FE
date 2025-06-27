@@ -78,6 +78,9 @@ function MemoryZoneListPage() {
   const hasUnlimitedMemoryZones = isLoaded && has ? has({ feature: 'unlimited_memory_zones' }) : false;
   const canCreateZone = hasUnlimitedMemoryZones || memoryZones.length < 3;
 
+  const ownedZones = memoryZones.filter((zone) => zone.owner_id === userId);
+  const sharedZones = memoryZones.filter((zone) => zone.owner_id !== userId);
+
   const fetchMemoryZones = async () => {
     if (!supabase || !userId) return;
 
@@ -85,7 +88,7 @@ function MemoryZoneListPage() {
     setIsError(false);
     setError(null);
     try {
-      const zones = await getAccessibleMemoryZones(supabase);
+      const zones = await getAccessibleMemoryZones(supabase, userId);
       setMemoryZones(zones);
     } catch (e) {
       setError(e as Error);
@@ -123,6 +126,52 @@ function MemoryZoneListPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const renderZoneCard = (zone: MemoryZone) => {
+    const contentPreview = getContentPreview(zone.content);
+    return (
+      <Card key={zone.id} className="group flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden">
+        <Link to="/journal/memory-zone/$zoneId" params={{ zoneId: zone.id! }} className="flex flex-col h-full flex-grow">
+          <CardHeader className="flex-row items-start justify-between space-y-0 pb-2">
+            <div className="flex-grow">
+              <CardTitle className="text-lg font-bold truncate">{zone.title}</CardTitle>
+              {contentPreview !== 'No content yet.' && contentPreview !== 'No text content found.' ? (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 h-10">{contentPreview}</p>
+              ) : (
+                <p className='text-sm text-gray-400 dark:text-gray-500 mt-2 italic h-10'>{contentPreview}</p>
+              )}
+            </div>
+            
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 -mt-2 -mr-2">
+                  <Settings className="h-5 w-5" />
+                  <span className="sr-only">Settings</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>{zone.title} Settings</SheetTitle>
+                  <SheetDescription>
+                    Manage members and other settings for this memory zone.
+                  </SheetDescription>
+                </SheetHeader>
+                <div className="py-4">
+                  <MemoryZoneSettings zone={zone} onUpdate={fetchMemoryZones} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          </CardHeader>
+          <CardContent className="flex-grow pt-0">
+            {/* Future content can go here, e.g. member avatars */}
+            <div className="text-xs text-muted-foreground mt-4">
+              <p>Last updated: {new Date(zone.updated_at!).toLocaleDateString()}</p>
+            </div>
+          </CardContent>
+        </Link>
+      </Card>
+    );
   };
 
   return (
@@ -214,51 +263,40 @@ function MemoryZoneListPage() {
       )}
 
       {!isLoading && !isError && (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
-          {memoryZones.map((zone) => {
-            const contentPreview = getContentPreview(zone.content);
-            return (
-            <Card key={zone.id} className="group flex flex-col justify-between hover:shadow-lg transition-shadow duration-300 rounded-xl overflow-hidden">
-              <Link to="/journal/memory-zone/$zoneId" params={{ zoneId: zone.id! }} className="flex flex-col h-full flex-grow">
-                <CardHeader className="flex-row items-start justify-between space-y-0 pb-2">
-                  <div className="flex-grow">
-                    <CardTitle className="text-lg font-bold truncate">{zone.title}</CardTitle>
-                    {contentPreview !== 'No content yet.' && contentPreview !== 'No text content found.' ? (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 line-clamp-2 h-10">{contentPreview}</p>
-                    ) : (
-                      <p className='text-sm text-gray-400 dark:text-gray-500 mt-2 italic h-10'>{contentPreview}</p>
-                    )}
-                  </div>
-                  
-                  <Sheet>
-                    <SheetTrigger asChild>
-                      <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 -mt-2 -mr-2">
-                        <Settings className="h-5 w-5" />
-                        <span className="sr-only">Settings</span>
-                      </Button>
-                    </SheetTrigger>
-                    <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
-                      <SheetHeader>
-                        <SheetTitle>{zone.title} Settings</SheetTitle>
-                        <SheetDescription>
-                          Manage members and other settings for this memory zone.
-                        </SheetDescription>
-                      </SheetHeader>
-                      <div className="py-4">
-                        <MemoryZoneSettings zone={zone} onUpdate={fetchMemoryZones} />
-                      </div>
-                    </SheetContent>
-                  </Sheet>
-                </CardHeader>
-                <CardContent className="flex-grow pt-0">
-                  {/* Future content can go here, e.g. member avatars */}
-                  <div className="text-xs text-muted-foreground mt-4">
-                    <p>Last updated: {new Date(zone.updated_at!).toLocaleDateString()}</p>
-                  </div>
-                </CardContent>
-              </Link>
-            </Card>
-          )})}
+        <div className="space-y-12">
+          <section>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mb-6">My Memory Zones</h2>
+            {ownedZones.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {ownedZones.map(renderZoneCard)}
+              </div>
+            ) : (
+              <div className="text-center py-12 px-6 border-2 border-dashed rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No zones created yet</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">You haven't created any Memory Zones. Get started by creating one!</p>
+                <div className="mt-6">
+                  <Button onClick={() => setIsDialogOpen(true)} disabled={!canCreateZone || isLoading}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create New Zone
+                  </Button>
+                </div>
+              </div>
+            )}
+          </section>
+
+          <section>
+            <h2 className="text-2xl font-bold tracking-tight text-gray-900 dark:text-white mb-6">Shared With Me</h2>
+            {sharedZones.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
+                {sharedZones.map(renderZoneCard)}
+              </div>
+            ) : (
+              <div className="text-center py-12 px-6 border-2 border-dashed rounded-lg">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">No zones shared with you</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Memory Zones shared by others will appear here.</p>
+              </div>
+            )}
+          </section>
         </div>
       )}
     </div>
