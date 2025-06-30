@@ -1,9 +1,3 @@
-when:
-  - event: pull_request
-    branch: main
-  - event: push
-    branch: main
-
 steps:
   - name: Building FE
     image: bash
@@ -35,7 +29,7 @@ steps:
       DEPLOY_COMMAND: "cd /root/Bean-Journal-Web-FE && npm install -g pm2 && pm2 delete BJ_FE || true && pm2 start serve --name BJ_FE -- -s ./Bean-Journal-Web-FE/dist/ -l 3000" # Your actual deploy command
     commands:
       - sudo apt-get update -y && sudo apt-get install -y openssh-client rsync
-      
+
       # Setup SSH
       - sudo mkdir -p $WOODPECKER_WORKSPACE/.ssh
       - echo "$SSHK" | sudo tee $WOODPECKER_WORKSPACE/.ssh/id_rsa_deploy > /dev/null
