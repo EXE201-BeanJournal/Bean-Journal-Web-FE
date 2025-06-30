@@ -4,7 +4,8 @@ import "@fontsource/readex-pro/500.css"; // Medium weight
 import "@fontsource/readex-pro/600.css"; // Medium weight
 // import { CalendarIcon, ClockIcon } from "lucide-react"; // Assuming lucide-react for icons - Removed unused import
 import "react-day-picker/dist/style.css"; // Import default styles (we'll override)
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { gsap } from "gsap";
 // import beanLogo from "@/images/logo_bean_journal.png"; // No longer needed here
 import HeaderCard from "@/components/journal/HeaderCard";
 // import DebugControls from "@/components/journal/DebugControls";
@@ -21,10 +22,7 @@ import JournalCalendarSection from "../../components/journal/JournalCalendarSect
 import StreakManagement from "../../components/journal/StreakManagement"; // Import StreakManagement
 // import MobileBlocker from "../../components/journal/MobileBlocker";
 // import LandscapeBlocker from "../../components/journal/LandscapeBlocker";
-// import { useMediaQuery } from 'react-responsive';
-import { HeaderCardSkeleton } from "@/components/journal/HeaderCardSkeleton";
-import { TagSectionSkeleton } from "@/components/journal/TagSectionSkeleton";
-import { JournalCalendarSectionSkeleton } from "@/components/journal/JournalCalendarSectionSkeleton";
+import LoadingAnimation from "@/components/shared/LoadingAnimation";
 
 // Update the route path to make it a child of the journal root
 export const Route = createFileRoute("/journal/")({
@@ -282,8 +280,9 @@ function Homepage() {
   // const [showDebugButton, setShowDebugButton] = useState(false);  const [debugStreakKey, setDebugStreakKey] = useState(0); // Key to force StreakManagement update
 
   // Unified loading and error states
-  const [isLoading, setIsLoading] = useState(true);
+  const [showLoadingScreen, setShowLoadingScreen] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadingContainerRef = useRef<HTMLDivElement>(null);
 
   // Profile related state
   const [userProfile, setUserProfile] = useState<Profile | null>(null);
@@ -298,7 +297,6 @@ function Homepage() {
   useEffect(() => {
     const fetchData = async () => {
       if (!userId || !supabase) {
-        setIsLoading(false);
         return;
       }
 
@@ -314,11 +312,23 @@ function Homepage() {
       } catch (fetchError) {
         console.error("Failed to fetch initial data:", fetchError);
         setError("Failed to load your journal. Please try again later.");
-      } finally {
-        setIsLoading(false);
       }
     };
-    fetchData();
+
+    const dataPromise = fetchData();
+    const timerPromise = new Promise(resolve => setTimeout(resolve, 1800)); // Animation is ~2.3s
+
+    Promise.all([dataPromise, timerPromise]).finally(() => {
+        if (loadingContainerRef.current) {
+            gsap.to(loadingContainerRef.current, {
+                autoAlpha: 0,
+                duration: 0.3,
+                onComplete: () => setShowLoadingScreen(false)
+            });
+        } else {
+            setShowLoadingScreen(false);
+        }
+    });
   }, [userId, supabase]);
 
   // const handleDebugClick = () => {
@@ -335,23 +345,19 @@ function Homepage() {
 //     return isLandscape ? <LandscapeBlocker /> : <MobileBlocker />;
 //   }
 
-  if (isLoading) {
-    return (
-      <>
-        <style>{animationStyles}</style>
-        <div className="h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
-          <HeaderCardSkeleton />
-          <TagSectionSkeleton />
-          <JournalCalendarSectionSkeleton />
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
       <style>{animationStyles}</style>
-      <div className="h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
+      <div className="relative h-full md:h-[calc(100vh-100px)] overflow-auto px-4 bg-white dark:bg-[#1E1726] border-x-1 dark:border-x-2">
+        {showLoadingScreen && (
+            <div
+                ref={loadingContainerRef}
+                className="absolute inset-0 z-50 flex items-center justify-center bg-white dark:bg-[#1E1726]"
+            >
+                <LoadingAnimation />
+            </div>
+        )}
+
         {error && (
           <p className="text-center text-red-500 py-4">{error}</p>
         )}
