@@ -3,6 +3,7 @@ import { useClerk } from "@clerk/clerk-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
 import { BrainCircuit } from "lucide-react";
 import DecoratedSummary from "./DecoratedSummary";
+import LoadingAnimation from "./LoadingAnimation";
 import { Tooltip, TooltipProvider, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface AISummaryCardProps {
@@ -68,7 +69,7 @@ const AISummaryCard = ({ initialSummary, onInsightGenerated, rateLimitMessage }:
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          question: `Summarize all the journals from the user ${user.username} for 1 month`,
+          question: `Summarize all the journals from the user ${user.username} for 1 week`,
           stream: false,
           dev: true,
         }),
@@ -112,9 +113,7 @@ const AISummaryCard = ({ initialSummary, onInsightGenerated, rateLimitMessage }:
       <CardContent>
         <div className="mt-2 space-y-4">
           {isLoading && (
-            <div className="flex items-center justify-center p-4 text-gray-500 dark:text-gray-400">
-              <p>Generating your summary...</p>
-            </div>
+            <LoadingAnimation />
           )}
 
           {error && (

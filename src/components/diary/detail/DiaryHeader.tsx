@@ -1,6 +1,7 @@
 import React from "react";
 import { format } from "date-fns";
 import { Smile, Music } from "lucide-react";
+import LoadingAnimation from "../../user-profile/LoadingAnimation";
 
 interface DiaryHeaderProps {
   editableTitle: string;
@@ -101,8 +102,18 @@ const DiaryHeader: React.FC<DiaryHeaderProps> = ({
             disabled={isAnalyzingMood}
             className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Smile className="h-5 w-5 mr-2" />
-            {isAnalyzingMood ? "Analyzing..." : "Analyze Mood"}
+            {isAnalyzingMood ? (
+              <div className="flex items-center justify-center w-full">
+                <div className="w-20 h-5">
+                  <LoadingAnimation />
+                </div>
+              </div>
+            ) : (
+              <>
+                <Smile className="h-5 w-5 mr-2" />
+                Analyze Mood
+              </>
+            )}
           </button>
           {moodAnalysisError && (
             <div className="text-sm text-red-500">{moodAnalysisError}</div>

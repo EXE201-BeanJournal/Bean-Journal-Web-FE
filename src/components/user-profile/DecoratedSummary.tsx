@@ -107,12 +107,12 @@ const ContentRenderer = ({ content }: ContentRendererProps) => {
             const parts = cleanLine.split(/:(.*)/s);
             const hasBoldTitle =
               parts.length > 1 &&
-              parts[0].startsWith("**") &&
-              parts[0].endsWith("**");
+              parts[0].trim().startsWith("**") &&
+              parts[0].trim().endsWith("**");
 
             if (hasBoldTitle) {
-              const title = parts[0].replace(/\*\*/g, "");
-              const itemContent = parts[1].trim();
+              const title = parts[0].trim().replace(/\*\*/g, "");
+              const itemContent = parts[1].trim().replace(/\*\*/g, "");
               const iconInfo = getIcon(title);
               const { icon: Icon, color } = iconInfo || {
                 icon: BrainCircuit,
@@ -146,7 +146,7 @@ const ContentRenderer = ({ content }: ContentRendererProps) => {
               <div key={itemIndex} className="flex items-start">
                 <Icon className={`h-5 w-5 ${color} mr-3 mt-1 flex-shrink-0`} />
                 <p className="text-sm text-gray-600 dark:text-gray-300 flex-1">
-                  {cleanLine}
+                  {cleanLine.replace(/\*\*/g, "")}
                 </p>
               </div>
             );
@@ -183,8 +183,8 @@ const DecoratedSummary: React.FC<DecoratedSummaryProps> = ({ summary }) => {
 
   rawLines.forEach((line) => {
     const trimmedLine = line.trim();
-    if (trimmedLine.startsWith("**") && trimmedLine.endsWith("**")) {
-      const title = trimmedLine.replace(/\*\*/g, "").trim();
+    if (trimmedLine.startsWith("## ")) {
+      const title = trimmedLine.substring(3).trim();
       currentSection = { title, content: "" };
       sections.push(currentSection);
     } else if (currentSection) {
