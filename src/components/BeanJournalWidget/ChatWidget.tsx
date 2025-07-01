@@ -16,6 +16,7 @@ import {
   Headphones,
 } from "lucide-react";
 import FeedbackForm from "./FeedbackForm";
+import EmailForm from "./EmailForm";
 import { cn } from "@/lib/utils";
 import FeatureDisplay from "./FeatureDisplay";
 import PlansDisplay from "./PlansDisplay";
@@ -76,6 +77,32 @@ const ChatWidget: React.FC = () => {
   const [showSupportOption, setShowSupportOption] = useState(false);
   const [isHumanSupportMode, setIsHumanSupportMode] = useState(false);
   const [showSessionEndDialog, setShowSessionEndDialog] = useState(false);
+  const [currentView, setCurrentView] = useState<'menu' | 'chat' | 'faq' | 'email'>('menu');
+  const [selectedFAQ, setSelectedFAQ] = useState<string | null>(null);
+
+  // FAQ data
+  const faqData = [
+    {
+      question: "How do I create a new journal entry?",
+      answer: "To create a new journal entry, click the 'New Entry' button on your dashboard. You can then start writing your thoughts, add tags, and save your entry."
+    },
+    {
+      question: "Can I customize my journal theme?",
+      answer: "Yes! Go to Settings > Appearance to choose from various themes, fonts, and color schemes to personalize your journaling experience."
+    },
+    {
+      question: "How do I backup my journal data?",
+      answer: "Your journal data is automatically backed up to the cloud. You can also manually export your entries by going to Settings > Export Data."
+    },
+    {
+      question: "Is my journal data private and secure?",
+      answer: "Absolutely! All your journal entries are encrypted and stored securely. Only you have access to your personal journal data."
+    },
+    {
+      question: "How do I search through my past entries?",
+      answer: "Use the search bar at the top of your dashboard. You can search by keywords, tags, dates, or even emotions to find specific entries."
+    }
+  ];
 
   // Support agent connection
   const {
@@ -179,7 +206,7 @@ const ChatWidget: React.FC = () => {
     // Otherwise, send to AI
     setIsLoading(true);
     try {
-      const response = await fetch("http://localhost:3008/ask", {
+      const response = await fetch("https://aiapi.beanjournal.site/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: currentInput }),
@@ -234,6 +261,31 @@ const ChatWidget: React.FC = () => {
     setExpandedSteps((prev) => ({ ...prev, [index]: !prev[index] }));
   };
 
+  const handleChatWithAI = () => {
+    setCurrentView('chat');
+  };
+
+  const handleEmailUs = () => {
+    setCurrentView('email');
+  };
+
+  const handleEmailSuccess = () => {
+    // Optional: Show success message or redirect back to menu
+    setTimeout(() => {
+      setCurrentView('menu');
+    }, 2000);
+  };
+
+  const handleFAQClick = (faq: { question: string; answer: string }) => {
+    setSelectedFAQ(faq.question);
+    setCurrentView('faq');
+  };
+
+  const handleBackToMenu = () => {
+    setCurrentView('menu');
+    setSelectedFAQ(null);
+  };
+
   if (!isOpen) {
     return (
       <button
@@ -245,6 +297,71 @@ const ChatWidget: React.FC = () => {
       </button>
     );
   }
+
+  const renderMenuView = () => (
+    <main className="flex-1 p-4 overflow-y-auto">
+      <div className="space-y-6">
+        {/* Chat Section */}
+        <div>
+          <h3 className="font-semibold text-lg mb-3 text-gray-800">Chat Section</h3>
+          <div className="space-y-2">
+            <button
+              onClick={handleChatWithAI}
+              className="w-full p-3 text-left bg-blue-50 hover:bg-blue-100 rounded-lg border border-blue-200 transition-colors flex items-center space-x-3"
+            >
+              <BrainCircuit className="w-5 h-5 text-blue-600" />
+              <span className="text-blue-800 font-medium">Chat with AI</span>
+            </button>
+            <button
+              onClick={handleEmailUs}
+              className="w-full p-3 text-left bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors flex items-center space-x-3"
+            >
+              <Headphones className="w-5 h-5 text-green-600" />
+              <span className="text-green-800 font-medium">Email us</span>
+            </button>
+          </div>
+        </div>
+
+        {/* FAQ Section */}
+        <div>
+          <h3 className="font-semibold text-lg mb-3 text-gray-800">FAQ</h3>
+          <div className="space-y-2">
+            {faqData.map((faq, index) => (
+              <button
+                key={index}
+                onClick={() => handleFAQClick(faq)}
+                className="w-full p-3 text-left bg-gray-50 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors"
+              >
+                <span className="text-gray-800 text-sm">{faq.question}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+
+  const renderFAQView = () => (
+    <main className="flex-1 p-4 overflow-y-auto">
+      {selectedFAQ && (
+        <div className="space-y-4">
+          <button
+            onClick={handleBackToMenu}
+            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800 mb-4"
+          >
+            <ChevronDown className="w-4 h-4 rotate-90" />
+            <span>Back to menu</span>
+          </button>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <h4 className="font-semibold text-lg mb-3 text-blue-800">{selectedFAQ}</h4>
+            <p className="text-gray-700 leading-relaxed">
+              {faqData.find(faq => faq.question === selectedFAQ)?.answer}
+            </p>
+          </div>
+        </div>
+      )}
+    </main>
+  );
 
   return (
     <div
@@ -269,10 +386,16 @@ const ChatWidget: React.FC = () => {
           )}
           <div>
             <h3 className="font-bold text-lg">
-              {isHumanSupportMode ? (currentSession?.agentName || "Human Support") : "Bean Journal Assistant"}
+              {currentView === 'menu' ? "Bean Journal Support" : 
+               currentView === 'faq' ? "FAQ" :
+               currentView === 'email' ? "Contact Support" :
+               isHumanSupportMode ? (currentSession?.agentName || "Human Support") : "Bean Journal Assistant"}
             </h3>
             <p className="text-sm text-gray-500">
-              {isHumanSupportMode ? (
+              {currentView === 'menu' ? "How can we help you?" :
+               currentView === 'faq' ? "Frequently Asked Questions" :
+               currentView === 'email' ? "Send us a message" :
+               isHumanSupportMode ? (
                 <span>
                   Connected to support agent
                 </span>
@@ -309,7 +432,26 @@ const ChatWidget: React.FC = () => {
         </div>
       </header>
 
-      <main className="flex-1 p-4 overflow-y-auto space-y-4">
+      {currentView === 'menu' && renderMenuView()}
+      {currentView === 'faq' && renderFAQView()}
+      {currentView === 'email' && (
+        <EmailForm 
+          onBack={handleBackToMenu} 
+          onSuccess={handleEmailSuccess}
+        />
+      )}
+      {currentView === 'chat' && (
+      <>
+        <div className="p-3 border-b bg-gray-50">
+          <button
+            onClick={handleBackToMenu}
+            className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
+          >
+            <ChevronDown className="w-4 h-4 rotate-90" />
+            <span className="text-sm">Back to menu</span>
+          </button>
+        </div>
+        <main className="flex-1 p-4 overflow-y-auto space-y-4">
         {messages.map((msg, index) => {
           const isFeatureList =
             msg.type === "bot" &&
@@ -430,7 +572,9 @@ const ChatWidget: React.FC = () => {
           </div>
         )}
         <div ref={messagesEndRef} />
-      </main>
+        </main>
+      </>
+      )}
 
       <footer className="p-4 border-t">
         <div className="space-y-2">
