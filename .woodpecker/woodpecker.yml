@@ -10,7 +10,7 @@ steps:
     environment:
       # Make Woodpecker secrets available as environment variables in this step
       ENVI:
-        from_secret: DEV_ENVIRONMENT
+        from_secret: ENVIRONMENT
     commands:
       - curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
       - export NVM_DIR="$HOME/.nvm" # Or wherever nvm is installed
