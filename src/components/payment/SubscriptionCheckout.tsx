@@ -65,6 +65,18 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
       const userPhone = user.phoneNumbers?.[0]?.phoneNumber;
       const userEmail = user.emailAddresses?.[0]?.emailAddress || '';
       
+      // For MoMo payments, we'll handle phone number collection in the payment form
+      if (selectedPaymentMethod === 'momo') {
+        // Just create a payment intent without phone number for now
+        // The MoMo form will collect the phone number
+        setPaymentData({
+          paymentIntentId: `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+        });
+        setStep('payment');
+        return;
+      }
+      
+      // For Stripe payments, proceed as normal
       const result = await paymentService.createSubscriptionPayment(
         plan.id,
         selectedPaymentMethod,
@@ -77,12 +89,6 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
         clientSecret: result.clientSecret,
         paymentIntentId: result.paymentIntentId
       });
-
-      if (selectedPaymentMethod === 'momo' && result.paymentUrl) {
-        // For MoMo, redirect immediately
-        window.location.href = result.paymentUrl;
-        return;
-      }
 
       setStep('payment');
     } catch (error) {

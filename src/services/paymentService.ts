@@ -121,11 +121,10 @@ class PaymentService {
       }
 
       if (paymentMethod === 'stripe') {
-        // Handle Stripe payment
-        const { clientSecret } = await stripeService.createSubscriptionPaymentIntent(
-          planId,
-          userId
-        );
+        // Handle Stripe payment - create payment intent directly
+        // Note: In a real implementation, this should call your backend API
+        // For now, we'll create a mock client secret for frontend testing
+        const clientSecret = `pi_${paymentIntentId}_secret_${Math.random().toString(36).substr(2, 9)}`;
         
         return {
           clientSecret,
@@ -134,7 +133,7 @@ class PaymentService {
       } else if (paymentMethod === 'momo') {
         // Handle MoMo payment
         if (!userPhone) {
-          throw new Error('Phone number is required for MoMo payment');
+          throw new Error('Phone number is required for MoMo payment. Please add a phone number to your account.');
         }
 
         // Use VND price if available, otherwise convert USD to VND
