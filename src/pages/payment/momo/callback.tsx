@@ -35,7 +35,7 @@ export default function MoMoCallback() {
         }
 
         // Verify signature
-        const isValidSignature = momoPaymentService.verifyIPN({
+        const isValidSignature = await momoPaymentService.verifyIPN({
           partnerCode,
           orderId,
           requestId,

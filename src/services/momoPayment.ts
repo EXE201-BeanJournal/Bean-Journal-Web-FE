@@ -1,4 +1,36 @@
-import crypto from 'crypto';
+// Browser-compatible crypto implementation
+const crypto = {
+  createHmac: (_algorithm: string, key: string) => {
+    return {
+      update: (data: string) => {
+        return {
+          digest: async () => {
+            const encoder = new TextEncoder();
+            const keyData = encoder.encode(key);
+            const messageData = encoder.encode(data);
+            
+            const cryptoKey = await window.crypto.subtle.importKey(
+              'raw',
+              keyData,
+              { name: 'HMAC', hash: 'SHA-256' },
+              false,
+              ['sign']
+            );
+            
+            const signature = await window.crypto.subtle.sign(
+              'HMAC',
+              cryptoKey,
+              messageData
+            );
+            
+            const hashArray = Array.from(new Uint8Array(signature));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          }
+        };
+      }
+    };
+  }
+};
 
 interface MoMoConfig {
   partnerCode: string;
@@ -50,11 +82,11 @@ class MoMoPaymentService {
   /**
    * Generate HMAC SHA256 signature for MoMo API
    */
-  private generateSignature(rawData: string): string {
-    return crypto
+  private async generateSignature(rawData: string): Promise<string> {
+    return await crypto
       .createHmac('sha256', this.config.secretKey)
       .update(rawData)
-      .digest('hex');
+      .digest();
   }
 
   /**
@@ -72,7 +104,7 @@ class MoMoPaymentService {
     const requestId = orderId;
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${this.config.partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
     
-    const signature = this.generateSignature(rawSignature);
+    const signature = await this.generateSignature(rawSignature);
 
     const requestBody = {
       partnerCode: this.config.partnerCode,
@@ -114,7 +146,7 @@ class MoMoPaymentService {
   /**
    * Verify MoMo IPN (Instant Payment Notification) signature
    */
-  verifyIPN(ipnData: {
+  async verifyIPN(ipnData: {
     partnerCode: string;
     orderId: string;
     requestId: string;
@@ -128,7 +160,7 @@ class MoMoPaymentService {
     responseTime: number;
     extraData: string;
     signature: string;
-  }): boolean {
+  }): Promise<boolean> {
     const {
       partnerCode,
       orderId,
@@ -147,7 +179,7 @@ class MoMoPaymentService {
 
     const rawSignature = `accessKey=${this.config.accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
     
-    const expectedSignature = this.generateSignature(rawSignature);
+    const expectedSignature = await this.generateSignature(rawSignature);
     return signature === expectedSignature;
   }
 
@@ -157,7 +189,7 @@ class MoMoPaymentService {
   async queryPaymentStatus(orderId: string): Promise<MoMoPaymentResponse> {
     const requestId = orderId;
     const rawSignature = `accessKey=${this.config.accessKey}&orderId=${orderId}&partnerCode=${this.config.partnerCode}&requestId=${requestId}`;
-    const signature = this.generateSignature(rawSignature);
+    const signature = await this.generateSignature(rawSignature);
 
     const requestBody = {
       partnerCode: this.config.partnerCode,

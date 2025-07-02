@@ -212,7 +212,7 @@ class PaymentService {
       };
 
       const { data: subscription, error: subError } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .insert(subscriptionData)
         .select()
         .single();
@@ -248,7 +248,7 @@ class PaymentService {
   async getUserSubscription(userId: string): Promise<UserSubscription | null> {
     try {
       const { data: subscription, error } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'active')
@@ -273,7 +273,7 @@ class PaymentService {
   async cancelSubscription(subscriptionId: string): Promise<void> {
     try {
       const { error } = await supabase
-        .from('user_subscriptions')
+        .from('subscriptions')
         .update({
           status: 'canceled',
           updated_at: new Date().toISOString()
