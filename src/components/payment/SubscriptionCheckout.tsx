@@ -296,7 +296,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
         <div className="space-y-6">
           {selectedPaymentMethod === 'stripe' && paymentData.clientSecret && (
             <StripePaymentForm
-              amount={plan.price}
+              amount={plan.price || 0}
               currency={plan.currency}
               clientSecret={paymentData.clientSecret}
               onSuccess={handlePaymentSuccess}
@@ -307,7 +307,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
           
           {selectedPaymentMethod === 'momo' && paymentData.paymentIntentId && (
             <MoMoPaymentForm
-              amount={plan.price}
+              amount={plan.price || 0}
               currency={plan.currency}
               orderId={paymentData.paymentIntentId}
               onSuccess={() => {
