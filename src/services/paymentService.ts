@@ -122,8 +122,9 @@ class PaymentService {
       if (paymentMethod === 'stripe') {
         // Handle Stripe payment - create payment intent directly
         // Note: In a real implementation, this should call your backend API
-        // For now, we'll create a mock client secret for frontend testing
-        const clientSecret = `pi_${paymentIntentId}_secret_${Math.random().toString(36).substr(2, 9)}`;
+        // For now, we'll create a properly formatted mock client secret for frontend testing
+        const secretPart = Math.random().toString(36).substr(2, 24); // Longer secret part
+        const clientSecret = `${paymentIntentId}_secret_${secretPart}`;
         
         return {
           clientSecret,
