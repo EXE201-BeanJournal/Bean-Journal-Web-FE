@@ -50,7 +50,15 @@ export const paymentApi = {
   async confirmPayment(
     paymentIntentId: string,
     paymentMethod: 'stripe' | 'momo',
-    transactionData?: any,
+    transactionData?: {
+      orderId?: string;
+      transId?: string;
+      amount?: number;
+      resultCode?: number;
+      message?: string;
+      orderInfo?: string;
+      extraData?: Record<string, unknown>;
+    },
     userToken?: string
   ) {
     try {
@@ -99,7 +107,7 @@ export const subscriptionsApi = {
   /**
    * Get user's current subscription
    */
-  async getUserSubscription(userId: string, userToken?: string) {
+  async getUserSubscription(userId: string) {
     try {
       // For now, use the local paymentService
       // In production, this would call your backend API
@@ -115,11 +123,9 @@ export const subscriptionsApi = {
    */
   async cancelSubscription(
     subscriptionId: string,
-    userId: string,
-    userToken?: string
   ) {
     try {
-      return await paymentService.cancelSubscription(subscriptionId, userId);
+      return await paymentService.cancelSubscription(subscriptionId);
     } catch (error) {
       console.error('Error canceling subscription:', error);
       throw error;
@@ -130,15 +136,13 @@ export const subscriptionsApi = {
    * Update subscription plan
    */
   async updateSubscription(
-    newPlanId: string,
-    userId: string,
-    userToken?: string
+    userId: string
   ) {
     try {
       const currentSub = await paymentService.getUserSubscription(userId);
       
       if (currentSub && currentSub.status === 'active') {
-        await paymentService.cancelSubscription(currentSub.id, userId);
+        await paymentService.cancelSubscription(currentSub.id);
       }
 
       return {
@@ -158,7 +162,7 @@ export const webhookHandlers = {
    * Handle Stripe webhook events
    * Note: In production, webhooks should be handled on the server side
    */
-  async handleStripeWebhook(event: any) {
+  async handleStripeWebhook(event: { type: string; data: Record<string, unknown> }) {
     try {
       await paymentService.handleWebhook('stripe', event.type, event.data);
       return { received: true };
@@ -172,7 +176,17 @@ export const webhookHandlers = {
    * Handle MoMo webhook events
    * Note: In production, webhooks should be handled on the server side
    */
-  async handleMoMoWebhook(webhookData: any) {
+  async handleMoMoWebhook(webhookData: {
+    orderId: string;
+    transId: string;
+    amount: number;
+    resultCode: number;
+    message: string;
+    orderInfo: string;
+    extraData?: string;
+    partnerCode: string;
+    requestId: string;
+  }) {
     try {
       const webhookEvent = {
         type: 'momo.payment_completed',
@@ -212,7 +226,15 @@ export const usePaymentApi = () => {
     createPaymentIntent: (planId: string, paymentMethod: 'stripe' | 'momo', currency = 'USD') =>
       paymentApi.createPaymentIntent(planId, paymentMethod, currency, user?.id),
     
-    confirmPayment: (paymentIntentId: string, paymentMethod: 'stripe' | 'momo', transactionData?: any) =>
+    confirmPayment: (paymentIntentId: string, paymentMethod: 'stripe' | 'momo', transactionData?: {
+      orderId?: string;
+      transId?: string;
+      amount?: number;
+      resultCode?: number;
+      message?: string;
+      orderInfo?: string;
+      extraData?: Record<string, unknown>;
+    }) =>
       paymentApi.confirmPayment(paymentIntentId, paymentMethod, transactionData, user?.id)
   };
 };
@@ -222,12 +244,12 @@ export const useSubscriptionsApi = () => {
   
   return {
     getUserSubscription: () => 
-      user?.id ? subscriptionsApi.getUserSubscription(user.id, user.id) : Promise.resolve(null),
+      user?.id ? subscriptionsApi.getUserSubscription(user.id) : Promise.resolve(null),
     
     cancelSubscription: (subscriptionId: string) =>
-      user?.id ? subscriptionsApi.cancelSubscription(subscriptionId, user.id, user.id) : Promise.reject('No user'),
+      user?.id ? subscriptionsApi.cancelSubscription(subscriptionId) : Promise.reject('No user'),
     
-    updateSubscription: (newPlanId: string) =>
-      user?.id ? subscriptionsApi.updateSubscription(newPlanId, user.id, user.id) : Promise.reject('No user')
+    updateSubscription: () =>
+      user?.id ? subscriptionsApi.updateSubscription(user.id) : Promise.reject('No user')
   };
 };

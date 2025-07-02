@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useUser, PricingTable } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/Button';
 import { Check, Star, CreditCard, Smartphone, ToggleLeft, ToggleRight } from 'lucide-react';
@@ -12,7 +12,7 @@ export default function Pricing() {
     const [selectedPlanId, setSelectedPlanId] = useState('');
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
     const [userSubscription, setUserSubscription] = useState<UserSubscription | null>(null);
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [useClerkPricing, setUseClerkPricing] = useState(false);
 
     useEffect(() => {
@@ -83,7 +83,16 @@ export default function Pricing() {
             <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
                 <SubscriptionCheckout
                     planId={selectedPlanId}
-                    onSuccess={handleSubscriptionSuccess}
+                    onSuccess={(subscription) => handleSubscriptionSuccess({
+                        ...subscription,
+                        userId: user?.id || '',
+                        planId: selectedPlanId,
+                        currentPeriodStart: new Date().toISOString(),
+                        paymentMethod: 'stripe',
+                        createdAt: new Date().toISOString(),
+                        updatedAt: new Date().toISOString(),
+                        status: 'active'
+                    })}
                     onCancel={() => setShowCheckout(false)}
                     className="px-6"
                 />

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/router';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearch } from '@tanstack/react-router';
 import { momoPaymentService } from '../../../services/momoPayment';
 
 export default function MoMoCallback() {
-  const router = useRouter();
-  const [processing, setProcessing] = useState(true);
+  const navigate = useNavigate();
+  const searchParams = useSearch({ strict: false });
+  const [, setProcessing] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,7 +25,7 @@ export default function MoMoCallback() {
           responseTime,
           extraData,
           signature
-        } = router.query;
+        } = searchParams as Record<string, string>;
 
         // Validate required parameters
         if (!orderId || !resultCode) {
@@ -34,20 +35,20 @@ export default function MoMoCallback() {
         }
 
         // Verify signature
-        const isValidSignature = momoPaymentService.verifyIPNSignature({
-          partnerCode: partnerCode as string,
-          orderId: orderId as string,
-          requestId: requestId as string,
-          amount: amount as string,
-          orderInfo: orderInfo as string,
-          orderType: orderType as string,
-          transId: transId as string,
-          resultCode: resultCode as string,
-          message: message as string,
-          payType: payType as string,
-          responseTime: responseTime as string,
-          extraData: extraData as string,
-          signature: signature as string
+        const isValidSignature = momoPaymentService.verifyIPN({
+          partnerCode,
+          orderId,
+          requestId,
+          amount: parseInt(amount),
+          orderInfo,
+          orderType,
+          transId,
+          resultCode: parseInt(resultCode),
+          message,
+          payType,
+          responseTime: parseInt(responseTime),
+          extraData,
+          signature
         });
 
         if (!isValidSignature) {
@@ -61,9 +62,9 @@ export default function MoMoCallback() {
         
         if (resultCodeNum === 0) {
           // Payment successful
-          router.replace({
-            pathname: '/payment/success',
-            query: {
+          navigate({
+            to: '/payment/success',
+            search: {
               payment_method: 'momo',
               order_id: orderId,
               trans_id: transId
@@ -89,9 +90,9 @@ export default function MoMoCallback() {
               reason = 'payment_failed';
           }
 
-          router.replace({
-            pathname: '/payment/cancel',
-            query: {
+          navigate({
+            to: '/payment/cancel',
+            search: {
               payment_method: 'momo',
               reason,
               message: message || 'Payment failed'
@@ -105,10 +106,8 @@ export default function MoMoCallback() {
       }
     };
 
-    if (router.isReady) {
-      handleCallback();
-    }
-  }, [router]);
+    handleCallback();
+  }, [searchParams, navigate]);
 
   if (error) {
     return (
@@ -122,7 +121,7 @@ export default function MoMoCallback() {
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">{error}</p>
           <button
-            onClick={() => router.push('/pricing')}
+            onClick={() => navigate({ to: '/pricing' })}
             className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg transition-colors"
           >
             Try Again

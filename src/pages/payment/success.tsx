@@ -36,8 +36,7 @@ export default function PaymentSuccess() {
         } else if (payment_intent) {
           // For Stripe payments, confirm the payment intent
           const result = await paymentService.confirmPayment(
-            payment_intent as string,
-            (payment_method as string) || 'stripe'
+            payment_intent as string
           );
           setSubscription(result);
         }

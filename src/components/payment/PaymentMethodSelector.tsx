@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { CreditCard, Smartphone, Check } from 'lucide-react';
+import React from 'react';
+import { CreditCard, Check } from 'lucide-react';
 
 interface PaymentMethod {
   id: string;

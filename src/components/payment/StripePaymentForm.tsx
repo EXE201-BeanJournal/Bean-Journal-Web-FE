@@ -7,7 +7,6 @@ import {
   useElements
 } from '@stripe/react-stripe-js';
 import { CreditCard, Loader2, AlertCircle } from 'lucide-react';
-import { paymentApi } from '../../services/apiService';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
@@ -174,7 +173,7 @@ const PaymentForm: React.FC<Omit<StripePaymentFormProps, 'clientSecret'> & { cli
 };
 
 const StripePaymentForm: React.FC<StripePaymentFormProps> = (props) => {
-  const [clientSecret, setClientSecret] = useState(props.clientSecret || '');
+  const [clientSecret] = useState(props.clientSecret || '');
   const [loading, setLoading] = useState(!props.clientSecret);
   const [error, setError] = useState('');
 
@@ -198,6 +197,7 @@ const StripePaymentForm: React.FC<StripePaymentFormProps> = (props) => {
 
       createPaymentIntent();
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.clientSecret, props.amount, props.currency, props.onError]);
 
   if (loading) {

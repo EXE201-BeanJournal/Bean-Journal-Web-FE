@@ -17,6 +17,7 @@ import { Route as SignInImport } from './routes/sign-in'
 import { Route as PricingImport } from './routes/pricing'
 import { Route as JournalImport } from './routes/journal'
 import { Route as FeaturesImport } from './routes/features'
+import { Route as ContactImport } from './routes/contact'
 import { Route as BlogImport } from './routes/blog'
 import { Route as AboutImport } from './routes/about'
 import { Route as R404Import } from './routes/__404'
@@ -25,6 +26,8 @@ import { Route as JournalIndexImport } from './routes/journal/index'
 import { Route as SignUpContinueImport } from './routes/sign-up/continue'
 import { Route as SignInSsoCallbackImport } from './routes/sign-in/sso-callback'
 import { Route as ShareShareIdImport } from './routes/share/$shareId'
+import { Route as PaymentSuccessImport } from './routes/payment/success'
+import { Route as PaymentCancelImport } from './routes/payment/cancel'
 import { Route as JournalUserProfileImport } from './routes/journal/user-profile'
 import { Route as JournalTodoImport } from './routes/journal/todo'
 import { Route as JournalDiaryImport } from './routes/journal/diary'
@@ -33,6 +36,7 @@ import { Route as JournalBeanJourneyImport } from './routes/journal/bean-journey
 import { Route as DemoBillingImport } from './routes/demo/billing'
 import { Route as BlogSlugImport } from './routes/blog/$slug'
 import { Route as JournalMemoryZoneIndexImport } from './routes/journal/memory-zone/index'
+import { Route as PaymentMomoCallbackImport } from './routes/payment/momo/callback'
 import { Route as JournalProjectProjectIdImport } from './routes/journal/project/$projectId'
 import { Route as JournalMemoryZoneZoneIdImport } from './routes/journal/memory-zone/$zoneId'
 
@@ -71,6 +75,12 @@ const JournalRoute = JournalImport.update({
 const FeaturesRoute = FeaturesImport.update({
   id: '/features',
   path: '/features',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ContactRoute = ContactImport.update({
+  id: '/contact',
+  path: '/contact',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -118,6 +128,18 @@ const SignInSsoCallbackRoute = SignInSsoCallbackImport.update({
 const ShareShareIdRoute = ShareShareIdImport.update({
   id: '/share/$shareId',
   path: '/share/$shareId',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PaymentSuccessRoute = PaymentSuccessImport.update({
+  id: '/payment/success',
+  path: '/payment/success',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PaymentCancelRoute = PaymentCancelImport.update({
+  id: '/payment/cancel',
+  path: '/payment/cancel',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -169,6 +191,12 @@ const JournalMemoryZoneIndexRoute = JournalMemoryZoneIndexImport.update({
   getParentRoute: () => JournalRoute,
 } as any)
 
+const PaymentMomoCallbackRoute = PaymentMomoCallbackImport.update({
+  id: '/payment/momo/callback',
+  path: '/payment/momo/callback',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const JournalProjectProjectIdRoute = JournalProjectProjectIdImport.update({
   id: '/project/$projectId',
   path: '/project/$projectId',
@@ -211,6 +239,13 @@ declare module '@tanstack/react-router' {
       path: '/blog'
       fullPath: '/blog'
       preLoaderRoute: typeof BlogImport
+      parentRoute: typeof rootRoute
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactImport
       parentRoute: typeof rootRoute
     }
     '/features': {
@@ -304,6 +339,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof JournalUserProfileImport
       parentRoute: typeof JournalImport
     }
+    '/payment/cancel': {
+      id: '/payment/cancel'
+      path: '/payment/cancel'
+      fullPath: '/payment/cancel'
+      preLoaderRoute: typeof PaymentCancelImport
+      parentRoute: typeof rootRoute
+    }
+    '/payment/success': {
+      id: '/payment/success'
+      path: '/payment/success'
+      fullPath: '/payment/success'
+      preLoaderRoute: typeof PaymentSuccessImport
+      parentRoute: typeof rootRoute
+    }
     '/share/$shareId': {
       id: '/share/$shareId'
       path: '/share/$shareId'
@@ -345,6 +394,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/journal/project/$projectId'
       preLoaderRoute: typeof JournalProjectProjectIdImport
       parentRoute: typeof JournalImport
+    }
+    '/payment/momo/callback': {
+      id: '/payment/momo/callback'
+      path: '/payment/momo/callback'
+      fullPath: '/payment/momo/callback'
+      preLoaderRoute: typeof PaymentMomoCallbackImport
+      parentRoute: typeof rootRoute
     }
     '/journal/memory-zone/': {
       id: '/journal/memory-zone/'
@@ -422,6 +478,7 @@ export interface FileRoutesByFullPath {
   '': typeof R404Route
   '/about': typeof AboutRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
   '/features': typeof FeaturesRoute
   '/journal': typeof JournalRouteWithChildren
   '/pricing': typeof PricingRoute
@@ -435,12 +492,15 @@ export interface FileRoutesByFullPath {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/payment/cancel': typeof PaymentCancelRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal/': typeof JournalIndexRoute
   '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/payment/momo/callback': typeof PaymentMomoCallbackRoute
   '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
 }
 
@@ -449,6 +509,7 @@ export interface FileRoutesByTo {
   '': typeof R404Route
   '/about': typeof AboutRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
   '/features': typeof FeaturesRoute
   '/pricing': typeof PricingRoute
   '/sign-in': typeof SignInRouteWithChildren
@@ -461,12 +522,15 @@ export interface FileRoutesByTo {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/payment/cancel': typeof PaymentCancelRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal': typeof JournalIndexRoute
   '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/payment/momo/callback': typeof PaymentMomoCallbackRoute
   '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
 }
 
@@ -476,6 +540,7 @@ export interface FileRoutesById {
   '/__404': typeof R404Route
   '/about': typeof AboutRoute
   '/blog': typeof BlogRouteWithChildren
+  '/contact': typeof ContactRoute
   '/features': typeof FeaturesRoute
   '/journal': typeof JournalRouteWithChildren
   '/pricing': typeof PricingRoute
@@ -489,12 +554,15 @@ export interface FileRoutesById {
   '/journal/diary': typeof JournalDiaryRoute
   '/journal/todo': typeof JournalTodoRoute
   '/journal/user-profile': typeof JournalUserProfileRoute
+  '/payment/cancel': typeof PaymentCancelRoute
+  '/payment/success': typeof PaymentSuccessRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
   '/sign-up/continue': typeof SignUpContinueRoute
   '/journal/': typeof JournalIndexRoute
   '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
   '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/payment/momo/callback': typeof PaymentMomoCallbackRoute
   '/journal/memory-zone/': typeof JournalMemoryZoneIndexRoute
 }
 
@@ -505,6 +573,7 @@ export interface FileRouteTypes {
     | ''
     | '/about'
     | '/blog'
+    | '/contact'
     | '/features'
     | '/journal'
     | '/pricing'
@@ -518,12 +587,15 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/payment/cancel'
+    | '/payment/success'
     | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal/'
     | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/payment/momo/callback'
     | '/journal/memory-zone'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -531,6 +603,7 @@ export interface FileRouteTypes {
     | ''
     | '/about'
     | '/blog'
+    | '/contact'
     | '/features'
     | '/pricing'
     | '/sign-in'
@@ -543,12 +616,15 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/payment/cancel'
+    | '/payment/success'
     | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal'
     | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/payment/momo/callback'
     | '/journal/memory-zone'
   id:
     | '__root__'
@@ -556,6 +632,7 @@ export interface FileRouteTypes {
     | '/__404'
     | '/about'
     | '/blog'
+    | '/contact'
     | '/features'
     | '/journal'
     | '/pricing'
@@ -569,12 +646,15 @@ export interface FileRouteTypes {
     | '/journal/diary'
     | '/journal/todo'
     | '/journal/user-profile'
+    | '/payment/cancel'
+    | '/payment/success'
     | '/share/$shareId'
     | '/sign-in/sso-callback'
     | '/sign-up/continue'
     | '/journal/'
     | '/journal/memory-zone/$zoneId'
     | '/journal/project/$projectId'
+    | '/payment/momo/callback'
     | '/journal/memory-zone/'
   fileRoutesById: FileRoutesById
 }
@@ -584,6 +664,7 @@ export interface RootRouteChildren {
   R404Route: typeof R404Route
   AboutRoute: typeof AboutRoute
   BlogRoute: typeof BlogRouteWithChildren
+  ContactRoute: typeof ContactRoute
   FeaturesRoute: typeof FeaturesRoute
   JournalRoute: typeof JournalRouteWithChildren
   PricingRoute: typeof PricingRoute
@@ -591,7 +672,10 @@ export interface RootRouteChildren {
   SignUpRoute: typeof SignUpRouteWithChildren
   ThemeShopRoute: typeof ThemeShopRoute
   DemoBillingRoute: typeof DemoBillingRoute
+  PaymentCancelRoute: typeof PaymentCancelRoute
+  PaymentSuccessRoute: typeof PaymentSuccessRoute
   ShareShareIdRoute: typeof ShareShareIdRoute
+  PaymentMomoCallbackRoute: typeof PaymentMomoCallbackRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -599,6 +683,7 @@ const rootRouteChildren: RootRouteChildren = {
   R404Route: R404Route,
   AboutRoute: AboutRoute,
   BlogRoute: BlogRouteWithChildren,
+  ContactRoute: ContactRoute,
   FeaturesRoute: FeaturesRoute,
   JournalRoute: JournalRouteWithChildren,
   PricingRoute: PricingRoute,
@@ -606,7 +691,10 @@ const rootRouteChildren: RootRouteChildren = {
   SignUpRoute: SignUpRouteWithChildren,
   ThemeShopRoute: ThemeShopRoute,
   DemoBillingRoute: DemoBillingRoute,
+  PaymentCancelRoute: PaymentCancelRoute,
+  PaymentSuccessRoute: PaymentSuccessRoute,
   ShareShareIdRoute: ShareShareIdRoute,
+  PaymentMomoCallbackRoute: PaymentMomoCallbackRoute,
 }
 
 export const routeTree = rootRoute
@@ -623,6 +711,7 @@ export const routeTree = rootRoute
         "/__404",
         "/about",
         "/blog",
+        "/contact",
         "/features",
         "/journal",
         "/pricing",
@@ -630,7 +719,10 @@ export const routeTree = rootRoute
         "/sign-up",
         "/theme-shop",
         "/demo/billing",
-        "/share/$shareId"
+        "/payment/cancel",
+        "/payment/success",
+        "/share/$shareId",
+        "/payment/momo/callback"
       ]
     },
     "/": {
@@ -647,6 +739,9 @@ export const routeTree = rootRoute
       "children": [
         "/blog/$slug"
       ]
+    },
+    "/contact": {
+      "filePath": "contact.tsx"
     },
     "/features": {
       "filePath": "features.tsx"
@@ -710,6 +805,12 @@ export const routeTree = rootRoute
       "filePath": "journal/user-profile.tsx",
       "parent": "/journal"
     },
+    "/payment/cancel": {
+      "filePath": "payment/cancel.tsx"
+    },
+    "/payment/success": {
+      "filePath": "payment/success.tsx"
+    },
     "/share/$shareId": {
       "filePath": "share/$shareId.tsx"
     },
@@ -732,6 +833,9 @@ export const routeTree = rootRoute
     "/journal/project/$projectId": {
       "filePath": "journal/project/$projectId.tsx",
       "parent": "/journal"
+    },
+    "/payment/momo/callback": {
+      "filePath": "payment/momo/callback.tsx"
     },
     "/journal/memory-zone/": {
       "filePath": "journal/memory-zone/index.tsx",

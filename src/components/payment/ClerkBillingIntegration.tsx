@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { PricingTable, useUser, useOrganization } from '@clerk/clerk-react';
 import { Button } from '@/components/ui/Button';
 import { Building2, User, CreditCard, Settings, ExternalLink } from 'lucide-react';
@@ -8,7 +8,7 @@ interface ClerkBillingIntegrationProps {
 }
 
 export default function ClerkBillingIntegration({ className = '' }: ClerkBillingIntegrationProps) {
-  const { user, isSignedIn } = useUser();
+  const { isSignedIn } = useUser();
   const { organization } = useOrganization();
   const [billingMode, setBillingMode] = useState<'personal' | 'organization'>('personal');
 

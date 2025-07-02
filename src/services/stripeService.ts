@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
 class StripeService {
@@ -21,8 +22,8 @@ class StripeService {
    * Note: This now requires integration with paymentService
    */
   async createSubscriptionPaymentIntent(
-    planId: string,
-    userId: string
+    _planId: string,
+    _userId: string
   ): Promise<{ clientSecret: string; paymentIntentId: string }> {
     // This method should now be called through paymentService.createSubscriptionPayment
     // with paymentMethod: 'stripe'
@@ -34,8 +35,8 @@ class StripeService {
    * Note: This functionality is now handled by paymentService
    */
   async createExternalPaymentMethod(
-    type: string,
-    metadata: Record<string, string>
+    _type: string,
+    _metadata: Record<string, string>
 ): Promise<{ id: string; type: string; metadata: Record<string, string> }> {
     throw new Error('External payment methods are now handled by paymentService');
   }
@@ -45,8 +46,8 @@ class StripeService {
    * Note: This functionality is now handled by paymentService
    */
   async confirmExternalPayment(
-    paymentIntentId: string,
-    externalPaymentData: {
+    _paymentIntentId: string,
+    _externalPaymentData: {
       type: string;
       metadata?: Record<string, string>;
       returnUrl?: string;
@@ -70,9 +71,9 @@ class StripeService {
    * Note: This functionality is now handled by paymentService
    */
   async createCustomer(
-    email: string,
-    name: string,
-    userId: string
+    _email: string,
+    _name: string,
+    _userId: string
 ): Promise<{ id: string; email: string; name: string }> {
     throw new Error('Customer creation is now handled by paymentService');
   }
@@ -81,7 +82,7 @@ class StripeService {
    * Get subscription plans
    * Note: This functionality is now handled by paymentService
    */
-  async getSubscriptionPlans(): Promise<any[]> {
+  async getSubscriptionPlans(): Promise<{ id: string; name: string; price: number; currency: string; interval: string }[]> {
     throw new Error('Use paymentService.getSubscriptionPlans() instead');
   }
 
@@ -89,7 +90,7 @@ class StripeService {
    * Cancel subscription
    * Note: This functionality is now handled by paymentService
    */
-  async cancelSubscription(subscriptionId: string): Promise<{ id: string; status: string }> {
+  async cancelSubscription(_subscriptionId: string): Promise<{ id: string; status: string }> {
     throw new Error('Use paymentService.cancelSubscription() instead');
   }
 }

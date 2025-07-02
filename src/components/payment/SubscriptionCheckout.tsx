@@ -9,7 +9,7 @@ import { SubscriptionPlan } from '../../types/payment';
 
 interface SubscriptionCheckoutProps {
   planId: string;
-  onSuccess?: (subscription: any) => void;
+  onSuccess?: (subscription: { id: string; status: string; currentPeriodEnd: string }) => void;
   onCancel?: () => void;
   className?: string;
 }
@@ -93,15 +93,14 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
     }
   };
 
-  const handlePaymentSuccess = async (paymentResult: any) => {
+  const handlePaymentSuccess = async () => {
     try {
       if (!paymentData.paymentIntentId) {
         throw new Error('Payment intent ID not found');
       }
 
       const subscription = await paymentService.confirmPayment(
-        paymentData.paymentIntentId,
-        paymentResult
+        paymentData.paymentIntentId
       );
 
       onSuccess?.(subscription);
@@ -311,7 +310,9 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
               amount={plan.price}
               currency={plan.currency}
               orderId={paymentData.paymentIntentId}
-              onSuccess={handlePaymentSuccess}
+              onSuccess={() => {
+                handlePaymentSuccess();
+              }}
               onError={handlePaymentError}
               onCancel={handleBack}
             />
