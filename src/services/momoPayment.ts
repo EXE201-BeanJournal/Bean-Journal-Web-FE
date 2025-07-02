@@ -5,26 +5,39 @@ const crypto = {
       update: (data: string) => {
         return {
           digest: async () => {
+            if (!key || key.trim() === '') {
+              throw new Error('HMAC key cannot be empty');
+            }
+            
+            if (!data) {
+              throw new Error('HMAC data cannot be empty');
+            }
+            
             const encoder = new TextEncoder();
             const keyData = encoder.encode(key);
             const messageData = encoder.encode(data);
             
-            const cryptoKey = await window.crypto.subtle.importKey(
-              'raw',
-              keyData,
-              { name: 'HMAC', hash: 'SHA-256' },
-              false,
-              ['sign']
-            );
-            
-            const signature = await window.crypto.subtle.sign(
-              'HMAC',
-              cryptoKey,
-              messageData
-            );
-            
-            const hashArray = Array.from(new Uint8Array(signature));
-            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            try {
+              const cryptoKey = await window.crypto.subtle.importKey(
+                'raw',
+                keyData,
+                { name: 'HMAC', hash: 'SHA-256' },
+                false,
+                ['sign']
+              );
+              
+              const signature = await window.crypto.subtle.sign(
+                'HMAC',
+                cryptoKey,
+                messageData
+              );
+              
+              const hashArray = Array.from(new Uint8Array(signature));
+              return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            } catch (error) {
+              console.error('Web Crypto API error:', error);
+              throw new Error(`Crypto operation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            }
           }
         };
       }
@@ -77,16 +90,56 @@ class MoMoPaymentService {
         : 'https://test-payment.momo.vn/v2/gateway/api/create',
       environment: (import.meta.env.MOMO_ENVIRONMENT as 'sandbox' | 'production') || 'sandbox'
     };
+    
+    // Validate required configuration
+    this.validateConfig();
+  }
+  
+  /**
+   * Validate MoMo configuration
+   */
+  private validateConfig(): void {
+    const missingVars: string[] = [];
+    
+    if (!this.config.partnerCode || this.config.partnerCode === 'MOMO') {
+      missingVars.push('MOMO_PARTNER_CODE');
+    }
+    
+    if (!this.config.accessKey) {
+      missingVars.push('MOMO_ACCESS_KEY');
+    }
+    
+    if (!this.config.secretKey) {
+      missingVars.push('MOMO_SECRET_KEY');
+    }
+    
+    if (missingVars.length > 0) {
+      console.warn(`MoMo configuration incomplete. Missing environment variables: ${missingVars.join(', ')}`);
+      console.warn('Please check your .env file and ensure all MoMo variables are set.');
+    }
   }
 
   /**
    * Generate HMAC SHA256 signature for MoMo API
    */
   private async generateSignature(rawData: string): Promise<string> {
-    return await crypto
-      .createHmac('sha256', this.config.secretKey)
-      .update(rawData)
-      .digest();
+    if (!this.config.secretKey) {
+      throw new Error('MoMo secret key is not configured');
+    }
+    
+    if (!rawData) {
+      throw new Error('Raw data for signature generation cannot be empty');
+    }
+    
+    try {
+      return await crypto
+        .createHmac('sha256', this.config.secretKey)
+        .update(rawData)
+        .digest();
+    } catch (error) {
+      console.error('Signature generation failed:', error);
+      throw new Error('Failed to generate MoMo signature');
+    }
   }
 
   /**
