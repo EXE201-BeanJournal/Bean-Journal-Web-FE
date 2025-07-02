@@ -37,12 +37,15 @@ export interface SubscriptionPlan {
   id: string;
   name: string;
   description: string;
-  price: number;
+  price_usd: number;
+  price_vnd?: number;
   currency: string;
   interval: 'month' | 'year';
   features: string[];
   stripePriceId?: string;
   popular?: boolean;
+  // Computed property for backward compatibility
+  price?: number;
 }
 
 export interface PaymentIntent {
@@ -53,7 +56,7 @@ export interface PaymentIntent {
   paymentMethod: 'stripe' | 'momo';
   subscriptionPlanId: string;
   userId: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, string | number | boolean | null>;
   createdAt: string;
   updatedAt: string;
 }
@@ -75,7 +78,7 @@ export interface UserSubscription {
 export interface PaymentWebhookEvent {
   id: string;
   type: string;
-  data: any;
+  data: Record<string, unknown>;
   source: 'stripe' | 'momo';
   processed: boolean;
   createdAt: string;

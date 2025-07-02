@@ -14,7 +14,7 @@ class PaymentService {
         .from('subscription_plans')
         .select('*')
         .eq('active', true)
-        .order('price', { ascending: true });
+        .order('price_usd', { ascending: true });
 
       if (error) {
         console.error('Error fetching plans from Supabase:', error);
@@ -22,7 +22,13 @@ class PaymentService {
         return this.getDefaultPlans();
       }
 
-      return plans || this.getDefaultPlans();
+      // Add computed price property for backward compatibility
+      const plansWithPrice = (plans || []).map(plan => ({
+        ...plan,
+        price: plan.price_usd // Use USD price as default
+      }));
+
+      return plansWithPrice.length > 0 ? plansWithPrice : this.getDefaultPlans();
     } catch (error) {
       console.error('Error in getSubscriptionPlans:', error);
       return this.getDefaultPlans();
@@ -38,6 +44,8 @@ class PaymentService {
         id: 'free',
         name: 'Free',
         description: 'Perfect for getting started',
+        price_usd: 0,
+        price_vnd: 0,
         price: 0,
         currency: 'USD',
         interval: 'month',
@@ -51,6 +59,8 @@ class PaymentService {
         id: 'pro',
         name: 'Pro',
         description: 'For serious journaling enthusiasts',
+        price_usd: 19,
+        price_vnd: 456000,
         price: 19,
         currency: 'USD',
         interval: 'month',
@@ -95,7 +105,7 @@ class PaymentService {
           id: paymentIntentId,
           user_id: userId,
           plan_id: planId,
-          amount: plan.price * 100, // Convert to cents
+          amount: plan.price_usd * 100, // Convert USD to cents
           currency: plan.currency.toLowerCase(),
           payment_method: paymentMethod,
           status: 'pending',
@@ -127,9 +137,12 @@ class PaymentService {
           throw new Error('Phone number is required for MoMo payment');
         }
 
+        // Use VND price if available, otherwise convert USD to VND
+        const amountVND = plan.price_vnd || (plan.price_usd * 23000);
+        
         const momoResponse = await momoPaymentService.createPayment({
           orderId: paymentIntentId,
-          amount: plan.price * 23000, // Convert USD to VND (approximate rate)
+          amount: amountVND,
           orderInfo: `Bean Journal ${plan.name} Subscription`,
           redirectUrl: `${window.location.origin}/payment/success?payment_intent=${paymentIntentId}`,
           ipnUrl: `${process.env.VITE_WEBHOOK_BASE_URL || 'https://your-backend.com'}/webhooks/momo`
