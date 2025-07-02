@@ -30,6 +30,7 @@ import { Route as JournalTodoImport } from './routes/journal/todo'
 import { Route as JournalDiaryImport } from './routes/journal/diary'
 import { Route as JournalDashboardImport } from './routes/journal/dashboard'
 import { Route as JournalBeanJourneyImport } from './routes/journal/bean-journey'
+import { Route as DemoBillingImport } from './routes/demo/billing'
 import { Route as BlogSlugImport } from './routes/blog/$slug'
 import { Route as JournalMemoryZoneIndexImport } from './routes/journal/memory-zone/index'
 import { Route as JournalProjectProjectIdImport } from './routes/journal/project/$projectId'
@@ -150,6 +151,12 @@ const JournalBeanJourneyRoute = JournalBeanJourneyImport.update({
   getParentRoute: () => JournalRoute,
 } as any)
 
+const DemoBillingRoute = DemoBillingImport.update({
+  id: '/demo/billing',
+  path: '/demo/billing',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const BlogSlugRoute = BlogSlugImport.update({
   id: '/$slug',
   path: '/$slug',
@@ -254,6 +261,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/blog/$slug'
       preLoaderRoute: typeof BlogSlugImport
       parentRoute: typeof BlogImport
+    }
+    '/demo/billing': {
+      id: '/demo/billing'
+      path: '/demo/billing'
+      fullPath: '/demo/billing'
+      preLoaderRoute: typeof DemoBillingImport
+      parentRoute: typeof rootRoute
     }
     '/journal/bean-journey': {
       id: '/journal/bean-journey'
@@ -415,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/demo/billing': typeof DemoBillingRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -440,6 +455,7 @@ export interface FileRoutesByTo {
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/demo/billing': typeof DemoBillingRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -467,6 +483,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRouteWithChildren
   '/theme-shop': typeof ThemeShopRoute
   '/blog/$slug': typeof BlogSlugRoute
+  '/demo/billing': typeof DemoBillingRoute
   '/journal/bean-journey': typeof JournalBeanJourneyRoute
   '/journal/dashboard': typeof JournalDashboardRoute
   '/journal/diary': typeof JournalDiaryRoute
@@ -495,6 +512,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/theme-shop'
     | '/blog/$slug'
+    | '/demo/billing'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -519,6 +537,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/theme-shop'
     | '/blog/$slug'
+    | '/demo/billing'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -544,6 +563,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/theme-shop'
     | '/blog/$slug'
+    | '/demo/billing'
     | '/journal/bean-journey'
     | '/journal/dashboard'
     | '/journal/diary'
@@ -570,6 +590,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRouteWithChildren
   SignUpRoute: typeof SignUpRouteWithChildren
   ThemeShopRoute: typeof ThemeShopRoute
+  DemoBillingRoute: typeof DemoBillingRoute
   ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
@@ -584,6 +605,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRouteWithChildren,
   SignUpRoute: SignUpRouteWithChildren,
   ThemeShopRoute: ThemeShopRoute,
+  DemoBillingRoute: DemoBillingRoute,
   ShareShareIdRoute: ShareShareIdRoute,
 }
 
@@ -607,6 +629,7 @@ export const routeTree = rootRoute
         "/sign-in",
         "/sign-up",
         "/theme-shop",
+        "/demo/billing",
         "/share/$shareId"
       ]
     },
@@ -663,6 +686,9 @@ export const routeTree = rootRoute
     "/blog/$slug": {
       "filePath": "blog/$slug.tsx",
       "parent": "/blog"
+    },
+    "/demo/billing": {
+      "filePath": "demo/billing.tsx"
     },
     "/journal/bean-journey": {
       "filePath": "journal/bean-journey.tsx",
