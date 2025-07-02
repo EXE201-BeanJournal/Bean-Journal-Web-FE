@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import PricingComponent from '@/components/pricing';
@@ -24,7 +23,7 @@ import {
 
 export function BillingDemo() {
   const [activeDemo, setActiveDemo] = useState<'overview' | 'pricing' | 'clerk' | 'comparison'>('overview');
-  const [selectedPlan, setSelectedPlan] = useState<'free' | 'pro'>('free');
+// Removed unused state variable 'selectedPlan'
 
   const features = {
     clerkBilling: [
@@ -108,7 +107,7 @@ export function BillingDemo() {
             <Button
               key={id}
               variant={activeDemo === id ? 'default' : 'outline'}
-              onClick={() => setActiveDemo(id as any)}
+              onClick={() => setActiveDemo(id as 'overview' | 'pricing' | 'clerk' | 'comparison')}
               className="flex items-center gap-2"
             >
               <Icon className="w-4 h-4" />
