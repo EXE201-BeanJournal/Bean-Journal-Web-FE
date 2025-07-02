@@ -1,5 +1,4 @@
 import { supabase } from '../lib/supabase';
-import { stripeService } from './stripeService';
 import { momoPaymentService } from './momoPayment';
 import { SubscriptionPlan, UserSubscription } from '../types/payment';
 
