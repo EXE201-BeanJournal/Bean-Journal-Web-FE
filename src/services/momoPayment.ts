@@ -114,7 +114,21 @@ class MoMoPaymentService {
   /**
    * Verify MoMo IPN (Instant Payment Notification) signature
    */
-  verifyIPN(ipnData: any): boolean {
+  verifyIPN(ipnData: {
+    partnerCode: string;
+    orderId: string;
+    requestId: string;
+    amount: number;
+    orderInfo: string;
+    orderType: string;
+    transId: string;
+    resultCode: number;
+    message: string;
+    payType: string;
+    responseTime: number;
+    extraData: string;
+    signature: string;
+  }): boolean {
     const {
       partnerCode,
       orderId,
@@ -140,7 +154,7 @@ class MoMoPaymentService {
   /**
    * Query payment status from MoMo
    */
-  async queryPaymentStatus(orderId: string): Promise<any> {
+  async queryPaymentStatus(orderId: string): Promise<MoMoPaymentResponse> {
     const requestId = orderId;
     const rawSignature = `accessKey=${this.config.accessKey}&orderId=${orderId}&partnerCode=${this.config.partnerCode}&requestId=${requestId}`;
     const signature = this.generateSignature(rawSignature);
