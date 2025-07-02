@@ -70,7 +70,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
         // Just create a payment intent without phone number for now
         // The MoMo form will collect the phone number
         setPaymentData({
-          paymentIntentId: `pi_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          paymentIntentId: `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         });
         setStep('payment');
         return;
