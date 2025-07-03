@@ -96,9 +96,9 @@ class PaymentService {
       }
 
       // Create payment intent record in Supabase
-      const timestamp = Date.now();
-      const randomId = Math.random().toString(36).substr(2, 9);
-      const paymentIntentId = `pi_${timestamp}_${randomId}`;
+      const timestamp = Date.now().toString(36);
+      const randomId = Math.random().toString(36).substr(2, 15);
+      const paymentIntentId = `pi_${timestamp}${randomId}`;
       
       const { error: insertError } = await supabase
         .from('payment_intents')
