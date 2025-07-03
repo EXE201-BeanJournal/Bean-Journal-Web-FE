@@ -246,10 +246,18 @@ For issues:
 ## Deployment
 
 1. **Environment Variables**: Set all production keys
-2. **Webhook URLs**: Update to production URLs
-3. **Database**: Run migrations on production Supabase
-4. **SSL Certificates**: Ensure HTTPS is configured
-5. **Testing**: Test complete payment flow in production
+2. **Deploy Supabase Edge Functions**: 
+   ```bash
+   # Deploy the payment intent creation function
+   supabase functions deploy create-payment-intent
+   
+   # Set required secrets
+   supabase secrets set STRIPE_SECRET_KEY=sk_live_your_stripe_secret_key
+   ```
+3. **Webhook URLs**: Update to production URLs
+4. **Database**: Run migrations on production Supabase
+5. **SSL Certificates**: Ensure HTTPS is configured
+6. **Testing**: Test complete payment flow in production
 
 ---
 

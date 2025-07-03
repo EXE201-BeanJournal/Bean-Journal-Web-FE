@@ -32,13 +32,32 @@ A digital companion for coffee enthusiasts to track their coffee journey, explor
 npm install
 ```
 
-3. Start the development server
+3. Set up environment variables (copy `.env.example` to `.env` and fill in your values)
+
+4. Deploy Supabase Edge Functions (required for payment processing):
+
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Login and link to your project
+supabase login
+supabase link --project-ref your-project-ref
+
+# Deploy the Edge Functions
+supabase functions deploy create-payment-intent
+
+# Set required secrets
+supabase secrets set STRIPE_SECRET_KEY=sk_test_your_stripe_secret_key
+```
+
+5. Start the development server
 
 ```bash
 npm run dev
 ```
 
-4. Open your browser to `http://localhost:5173`
+6. Open your browser to `http://localhost:5173`
 
 ## Adding Anime.js v4 to Your Project
 
