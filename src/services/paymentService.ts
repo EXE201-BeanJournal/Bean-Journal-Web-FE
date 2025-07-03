@@ -95,42 +95,71 @@ class PaymentService {
         throw new Error('Subscription plan not found');
       }
 
-      // Create payment intent record in Supabase
-      const timestamp = Date.now().toString(36);
-      const randomId = Math.random().toString(36).substr(2, 15);
-      const paymentIntentId = `pi_${timestamp}${randomId}`;
+      // For MoMo payments, we still need to create a local payment intent record
+      let paymentIntentId: string = '';
       
-      const { error: insertError } = await supabase
-        .from('payment_intents')
-        .insert({
-          id: paymentIntentId,
-          user_id: userId,
-          plan_id: planId,
-          amount: plan.price_usd * 100, // Convert USD to cents
-          currency: plan.currency.toLowerCase(),
-          payment_method: paymentMethod,
-          status: 'pending',
-          metadata: {
-            planName: plan.name,
-            userEmail,
-            userPhone
-          }
-        });
+      if (paymentMethod === 'momo') {
+        const timestamp = Date.now().toString(36);
+        const randomId = Math.random().toString(36).substr(2, 15);
+        paymentIntentId = `pi_${timestamp}${randomId}`;
+        
+        const { error: insertError } = await supabase
+          .from('payment_intents')
+          .insert({
+            id: paymentIntentId,
+            user_id: userId,
+            plan_id: planId,
+            amount: plan.price_usd * 100, // Convert USD to cents
+            currency: plan.currency.toLowerCase(),
+            payment_method: paymentMethod,
+            status: 'pending',
+            metadata: {
+              planName: plan.name,
+              userEmail,
+              userPhone
+            }
+          });
 
-      if (insertError) {
-        throw new Error('Failed to create payment intent record');
+        if (insertError) {
+          throw new Error('Failed to create payment intent record');
+        }
       }
 
       if (paymentMethod === 'stripe') {
-        // Handle Stripe payment - create payment intent directly
-        // Note: In a real implementation, this should call your backend API
-        // For now, we'll create a properly formatted mock client secret for frontend testing
-        const secretPart = Math.random().toString(36).substr(2, 24); // Longer secret part
-        const clientSecret = `${paymentIntentId}_secret_${secretPart}`;
+        // Call Supabase Edge Function to create real Stripe payment intent
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session?.access_token) {
+          throw new Error('User not authenticated');
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+         
+         const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json',
+             'Authorization': `Bearer ${session.access_token}`,
+             'apikey': supabaseAnonKey,
+           },
+          body: JSON.stringify({
+            planId,
+            userEmail,
+            userPhone
+          })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to create payment intent');
+        }
+
+        const { clientSecret, paymentIntentId: realPaymentIntentId } = await response.json();
         
         return {
           clientSecret,
-          paymentIntentId
+          paymentIntentId: realPaymentIntentId
         };
       } else if (paymentMethod === 'momo') {
         // Handle MoMo payment
