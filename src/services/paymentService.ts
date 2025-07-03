@@ -283,23 +283,66 @@ class PaymentService {
    */
   async getUserSubscription(supabase: SupabaseClient, userId: string): Promise<UserSubscription | null> {
     try {
-      const { data: subscription, error } = await supabase
+      // First, check if user has any subscriptions at all
+      const { data: subscriptions, error } = await supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', userId)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .limit(1);
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
+      if (error) {
+        console.error('Error fetching user subscription:', error);
+        return null;
       }
 
-      return subscription;
+      // Return the first subscription if it exists, otherwise null
+      return subscriptions && subscriptions.length > 0 ? subscriptions[0] : null;
     } catch (error) {
       console.error('Error fetching user subscription:', error);
       return null;
+    }
+  }
+
+  /**
+   * Get comprehensive user subscription status including profile data
+   */
+  async getUserSubscriptionStatus(supabase: SupabaseClient, userId: string): Promise<{
+    subscription: UserSubscription | null;
+    profile: {
+      subscription_tier: string;
+      subscription_status: string | null;
+      clerk_subscription_id: string | null;
+    } | null;
+  }> {
+    try {
+      // Get both subscription and profile data
+      const [subscriptionResult, profileResult] = await Promise.all([
+        supabase
+          .from('subscriptions')
+          .select('*')
+          .eq('user_id', userId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false })
+          .limit(1),
+        supabase
+          .from('profiles')
+          .select('subscription_tier, subscription_status, clerk_subscription_id')
+          .eq('id', userId)
+          .single()
+      ]);
+
+      const subscription = subscriptionResult.data && subscriptionResult.data.length > 0 
+        ? subscriptionResult.data[0] 
+        : null;
+
+      const profile = profileResult.error ? null : profileResult.data;
+
+      return { subscription, profile };
+    } catch (error) {
+      console.error('Error fetching user subscription status:', error);
+      return { subscription: null, profile: null };
     }
   }
 
