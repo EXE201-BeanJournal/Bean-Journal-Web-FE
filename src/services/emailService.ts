@@ -21,7 +21,14 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
 
     // Check if API key is configured
     if (!import.meta.env.VITE_RESEND_API_KEY) {
-      throw new Error('Resend API key not configured');
+      console.warn('Resend API key not configured, falling back to mailto');
+      // Fallback to mailto link
+      const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
+      window.open(mailtoUrl, '_blank');
+      return {
+        success: true,
+        message: 'Email client opened successfully'
+      };
     }
 
     // Create email content
@@ -64,34 +71,14 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
       })
     });
 
-    // Log response details for debugging
-    console.log('Response status:', response.status);
-    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-    
-    // Get response text first to debug JSON parsing issues
-    const responseText = await response.text();
-    console.log('Raw response:', responseText);
-
     if (!response.ok) {
-      let errorData;
-      try {
-        errorData = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('Failed to parse error response as JSON:', parseError);
-        errorData = { message: `Non-JSON response: ${responseText}` };
-      }
+      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
       console.error('Resend API error:', errorData);
       throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to send email'}`);
     }
 
-    let result;
-    try {
-      result = JSON.parse(responseText);
-      console.log('Email sent successfully:', result);
-    } catch (parseError) {
-      console.error('Failed to parse success response as JSON:', parseError);
-      throw new Error(`Invalid JSON response: ${responseText}`);
-    }
+    const result = await response.json();
+    console.log('Email sent successfully:', result);
 
     return {
       success: true,
@@ -101,9 +88,13 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
   } catch (error) {
     console.error('Email service error:', error);
     
+    // Fallback to mailto if Resend fails
+    const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
+    window.open(mailtoUrl, '_blank');
+    
     return {
-      success: false,
-      message: error instanceof Error ? error.message : 'Failed to send email'
+      success: true,
+      message: 'Email service unavailable, opened email client instead'
     };
   }
 };
