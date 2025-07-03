@@ -56,29 +56,71 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
       </div>
     `;
 
-    // Send email using Vite proxy to Resend API
-    const response = await fetch('/api/resend/emails', {
+    // Determine API endpoint based on environment
+    const isDevelopment = import.meta.env.DEV;
+    const backendApiUrl = import.meta.env.VITE_BACKEND_API_URL;
+    
+    // Check if backend API URL is configured for production
+    if (!isDevelopment && !backendApiUrl) {
+      console.warn('Backend API URL not configured for production, falling back to mailto');
+      const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
+      window.open(mailtoUrl, '_blank');
+      return {
+        success: true,
+        message: 'Backend API not configured, opened email client instead'
+      };
+    }
+    
+    const apiEndpoint = isDevelopment 
+      ? '/api/resend/emails'  // Use Vite proxy in development
+      : `${backendApiUrl}/api/email/send`;    // Use backend API in production
+    
+    // Prepare request body based on endpoint
+    const requestBody = isDevelopment 
+      ? {
+          from: 'Bean Journal Support <support@beanjournal.site>',
+          to: [emailData.to],
+          subject: emailData.subject,
+          html: emailContent,
+          reply_to: emailData.userEmail || 'noreply@beanjournal.site'
+        }
+      : {
+          to_address: emailData.to,
+          subject: emailData.subject,
+          body_html: emailContent,
+          reply_to_email_id: null
+        };
+
+    // Send email using appropriate endpoint
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        from: 'Bean Journal Support <support@beanjournal.site>',
-        to: [emailData.to],
-        subject: emailData.subject,
-        html: emailContent,
-        reply_to: emailData.userEmail || 'noreply@beanjournal.site'
-      })
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
-      console.error('Resend API error:', errorData);
+      console.error('Email API error:', errorData);
       throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to send email'}`);
     }
 
     const result = await response.json();
     console.log('Email sent successfully:', result);
+
+    // Handle different response formats
+    if (isDevelopment) {
+      // Resend API returns { id: "message_id" }
+      if (!result.id) {
+        throw new Error('No message ID returned from email service');
+      }
+    } else {
+      // Backend API returns { success: boolean, message_id?: string }
+      if (!result.success) {
+        throw new Error(result.message || 'Failed to send email');
+      }
+    }
 
     return {
       success: true,
