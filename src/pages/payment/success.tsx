@@ -22,7 +22,7 @@ export default function PaymentSuccess() {
 
   useEffect(() => {
     const confirmPayment = async () => {
-      if (!user || (!payment_intent && !order_id)) {
+      if (!user?.id || (!payment_intent && !order_id) || !supabase) {
         setLoading(false);
         return;
       }
@@ -33,27 +33,40 @@ export default function PaymentSuccess() {
         // For MoMo payments, we need to confirm using order_id
         if (payment_method === 'momo' && order_id) {
           // The webhook should have already processed this, just fetch the subscription
-          if (!supabase) throw new Error('Supabase client is not initialized');
-          const userSub = await paymentService.getUserSubscription(supabase, user.id);
-          setSubscription(userSub);
+          try {
+            const userSub = await paymentService.getUserSubscription(supabase, user.id);
+            setSubscription(userSub);
+          } catch (subscriptionError) {
+            console.error('Error fetching user subscription:', subscriptionError);
+            // For MoMo, if we can't fetch subscription, it might still be processing
+            setError('Payment is being processed. Please check your account in a few minutes.');
+          }
         } else if (payment_intent) {
           // For Stripe payments, confirm the payment intent
-          const result = await paymentService.confirmPayment(
-            supabase!, // Non-null assertion since we check for null above
-            payment_intent as string
-          );
-          setSubscription(result);
+          try {
+            const result = await paymentService.confirmPayment(
+              supabase,
+              payment_intent as string
+            );
+            setSubscription(result);
+          } catch (confirmError) {
+            console.error('Error confirming payment:', confirmError);
+            setError('Failed to confirm payment. Please contact support.');
+          }
         }
       } catch (err) {
-        console.error('Error confirming payment:', err);
-        setError('Failed to confirm payment. Please contact support.');
+        console.error('Error in payment confirmation process:', err);
+        setError('An unexpected error occurred. Please contact support.');
       } finally {
         setLoading(false);
       }
     };
 
-    confirmPayment();
-  }, [user, payment_intent, payment_method, order_id]);
+    // Only proceed if we have all required data
+    if (supabase && user?.id) {
+      confirmPayment();
+    }
+  }, [user, payment_intent, payment_method, order_id, supabase]);
 
   const handleContinue = () => {
     navigate({ to: '/journal' });

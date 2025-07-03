@@ -35,7 +35,8 @@ export const SupabaseProvider = ({ children }: { children: ReactNode }) => {
         },
         global: {
           fetch: async (url, options = {}) => {
-            const token = await getToken({template: 'supabase'});
+            // Use Clerk session token directly (new third-party auth integration)
+            const token = await getToken();
             const headers = new Headers(options.headers);
             if (token) {
               headers.set('Authorization', `Bearer ${token}`);

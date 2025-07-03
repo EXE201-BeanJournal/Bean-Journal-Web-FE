@@ -25,9 +25,16 @@ export default function Pricing() {
                 const plansData = await paymentService.getSubscriptionPlans(supabase);
                 setPlans(plansData);
 
-                if (isSignedIn && user) {
-                    const subscription = await paymentService.getUserSubscription(supabase, user.id);
-                    setUserSubscription(subscription);
+                // Only fetch user subscription if user is signed in and we have a valid user ID
+                if (isSignedIn && user?.id) {
+                    try {
+                        const subscription = await paymentService.getUserSubscription(supabase, user.id);
+                        setUserSubscription(subscription);
+                    } catch (subscriptionError) {
+                        console.error('Error fetching user subscription:', subscriptionError);
+                        // Don't throw here, just log the error and continue
+                        setUserSubscription(null);
+                    }
                 }
             } catch (error) {
                 console.error('Error loading pricing data:', error);
@@ -36,8 +43,11 @@ export default function Pricing() {
             }
         };
 
-        loadData();
-    }, [isSignedIn, user]);
+        // Only load data if supabase client is available
+        if (supabase) {
+            loadData();
+        }
+    }, [isSignedIn, user, supabase]);
 
     const handleSubscribe = (planId: string) => {
         if (!isSignedIn) {
