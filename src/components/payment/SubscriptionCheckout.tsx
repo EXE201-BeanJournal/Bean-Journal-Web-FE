@@ -59,14 +59,26 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
   }, [planId]);
 
   const handlePaymentMethodNext = async () => {
-    if (!user || !plan) return;
+    if (!user || !plan || !supabase) {
+      setError('User authentication or system initialization required');
+      return;
+    }
 
     try {
       setLoading(true);
       setError('');
 
+      // Verify user is properly authenticated
+      if (!user.id) {
+        throw new Error('User ID not available. Please sign in again.');
+      }
+
       const userPhone = user.phoneNumbers?.[0]?.phoneNumber;
       const userEmail = user.emailAddresses?.[0]?.emailAddress || '';
+      
+      if (!userEmail) {
+        throw new Error('Email address is required for subscription');
+      }
       
       // For MoMo payments, we'll handle phone number collection in the payment form
       if (selectedPaymentMethod === 'momo') {
@@ -81,7 +93,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
       
       // For Stripe payments, proceed as normal
       const result = await paymentService.createSubscriptionPayment(
-        supabase!, // Assert supabase is non-null since we check earlier in the function
+        supabase,
         plan.id,
         selectedPaymentMethod,
         user.id,
@@ -97,7 +109,14 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
       setStep('payment');
     } catch (error) {
       console.error('Error creating payment:', error);
-      setError(error instanceof Error ? error.message : 'Failed to create payment');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to create payment';
+      
+      // Provide more specific error messages for common authentication issues
+      if (errorMessage.includes('User not authenticated') || errorMessage.includes('authentication')) {
+        setError('Authentication error. Please sign out and sign in again, then try your subscription.');
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -109,15 +128,26 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
         throw new Error('Payment intent ID not found');
       }
 
+      if (!supabase) {
+        throw new Error('System not properly initialized. Please refresh the page.');
+      }
+
       const subscription = await paymentService.confirmPayment(
-        supabase!,
+        supabase,
         paymentData.paymentIntentId
       );
 
       onSuccess?.(subscription);
     } catch (error) {
       console.error('Error confirming payment:', error);
-      setError(error instanceof Error ? error.message : 'Failed to confirm payment');
+      const errorMessage = error instanceof Error ? error.message : 'Failed to confirm payment';
+      
+      // Provide more specific error messages for common authentication issues
+      if (errorMessage.includes('User not authenticated') || errorMessage.includes('authentication')) {
+        setError('Authentication error during payment confirmation. Please contact support.');
+      } else {
+        setError(errorMessage);
+      }
     }
   };
 

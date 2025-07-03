@@ -127,42 +127,31 @@ class PaymentService {
       }
 
       if (paymentMethod === 'stripe') {
-        // Call Supabase Edge Function to create real Stripe payment intent
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        // Call Supabase Edge Function to create real Stripe payment intent        
+        // Note: Since we're using Clerk authentication with custom fetch in SupabaseContext,
+        // the Supabase client already includes the Clerk token in requests.
+        // For direct Edge Function calls, we need to make the request through Supabase client
+        // to ensure proper authentication.
         
-        // Get the user's session token
-        const { data: { session } } = await supabase.auth.getSession();
-        const accessToken = session?.access_token;
-        
-        if (!accessToken) {
-          throw new Error('User not authenticated');
-        }
-        
-        const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'apikey': supabaseAnonKey,
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({
+        const { data, error } = await supabase.functions.invoke('create-payment-intent', {
+          body: {
             planId,
             userEmail,
             userPhone
-          })
+          }
         });
 
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create payment intent');
+        if (error) {
+          throw new Error(error.message || 'Failed to create payment intent');
         }
 
-        const { clientSecret, paymentIntentId: realPaymentIntentId } = await response.json();
+        if (!data || !data.clientSecret || !data.paymentIntentId) {
+          throw new Error('Invalid response from payment service');
+        }
         
         return {
-          clientSecret,
-          paymentIntentId: realPaymentIntentId
+          clientSecret: data.clientSecret,
+          paymentIntentId: data.paymentIntentId
         };
       } else if (paymentMethod === 'momo') {
         // Handle MoMo payment
