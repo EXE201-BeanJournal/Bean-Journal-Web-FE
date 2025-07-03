@@ -56,11 +56,12 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
       </div>
     `;
 
-    // Send email using Vite proxy to Resend API
-    const response = await fetch('/api/resend/emails', {
+    // Send email directly to Resend API
+    const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_RESEND_API_KEY}`
       },
       body: JSON.stringify({
         from: 'Bean Journal Support <support@beanjournal.site>',

@@ -171,6 +171,13 @@ const BillingContent = () => {
     </div>
   );
 };
+const navDemo = [
+  {
+    title: "Billing Demo",
+    url: "/demo/billing",
+    icon: CreditCard,
+  },
+];
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { isSignedIn, user } = useUser();
@@ -393,6 +400,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </h3>
         </div>
         <NavMain items={navOrganize} />
+
+        <div className="px-4 pt-3 pb-2">
+          <h3 className="px-2 text-xs font-medium uppercase tracking-wider text-[#1e1742]/60 dark:text-white/60">
+            Demo
+          </h3>
+        </div>
+        <NavMain items={navDemo} />
 
         <div className="px-2 py-2">
           <div className="flex items-center justify-between px-2">
