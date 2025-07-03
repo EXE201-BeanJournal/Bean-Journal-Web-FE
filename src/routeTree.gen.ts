@@ -8,341 +8,473 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-// Import Routes
+import { Route as rootRouteImport } from './routes/__root'
+import { Route as ThemeShopRouteImport } from './routes/theme-shop'
+import { Route as SignUpRouteImport } from './routes/sign-up'
+import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as JournalRouteImport } from './routes/journal'
+import { Route as FeaturesRouteImport } from './routes/features'
+import { Route as BlogRouteImport } from './routes/blog'
+import { Route as AboutRouteImport } from './routes/about'
+import { Route as _404RouteImport } from './routes/__404'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as JournalIndexRouteImport } from './routes/journal/index'
+import { Route as SignUpContinueRouteImport } from './routes/sign-up/continue'
+import { Route as SignInSsoCallbackRouteImport } from './routes/sign-in/sso-callback'
+import { Route as ShareShareIdRouteImport } from './routes/share/$shareId'
+import { Route as JournalUserProfileRouteImport } from './routes/journal/user-profile'
+import { Route as JournalTodoRouteImport } from './routes/journal/todo'
+import { Route as JournalDiaryRouteImport } from './routes/journal/diary'
+import { Route as JournalDashboardRouteImport } from './routes/journal/dashboard'
+import { Route as JournalBeanJourneyRouteImport } from './routes/journal/bean-journey'
+import { Route as BlogSlugRouteImport } from './routes/blog/$slug'
+import { Route as JournalMemoryZoneIndexRouteImport } from './routes/journal/memory-zone/index'
+import { Route as JournalProjectProjectIdRouteImport } from './routes/journal/project/$projectId'
+import { Route as JournalMemoryZoneZoneIdRouteImport } from './routes/journal/memory-zone/$zoneId'
 
-import { Route as rootRoute } from './routes/__root'
-import { Route as ThemeShopImport } from './routes/theme-shop'
-import { Route as SignUpImport } from './routes/sign-up'
-import { Route as SignInImport } from './routes/sign-in'
-import { Route as PricingImport } from './routes/pricing'
-import { Route as JournalImport } from './routes/journal'
-import { Route as FeaturesImport } from './routes/features'
-import { Route as BlogImport } from './routes/blog'
-import { Route as AboutImport } from './routes/about'
-import { Route as R404Import } from './routes/__404'
-import { Route as IndexImport } from './routes/index'
-import { Route as JournalIndexImport } from './routes/journal/index'
-import { Route as SignUpContinueImport } from './routes/sign-up/continue'
-import { Route as SignInSsoCallbackImport } from './routes/sign-in/sso-callback'
-import { Route as ShareShareIdImport } from './routes/share/$shareId'
-import { Route as JournalUserProfileImport } from './routes/journal/user-profile'
-import { Route as JournalTodoImport } from './routes/journal/todo'
-import { Route as JournalDiaryImport } from './routes/journal/diary'
-import { Route as JournalDashboardImport } from './routes/journal/dashboard'
-import { Route as JournalBeanJourneyImport } from './routes/journal/bean-journey'
-import { Route as BlogSlugImport } from './routes/blog/$slug'
-import { Route as JournalMemoryZoneIndexImport } from './routes/journal/memory-zone/index'
-import { Route as JournalProjectProjectIdImport } from './routes/journal/project/$projectId'
-import { Route as JournalMemoryZoneZoneIdImport } from './routes/journal/memory-zone/$zoneId'
-
-// Create/Update Routes
-
-const ThemeShopRoute = ThemeShopImport.update({
+const ThemeShopRoute = ThemeShopRouteImport.update({
   id: '/theme-shop',
   path: '/theme-shop',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const SignUpRoute = SignUpImport.update({
+const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const SignInRoute = SignInImport.update({
+const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const PricingRoute = PricingImport.update({
+const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const JournalRoute = JournalImport.update({
+const JournalRoute = JournalRouteImport.update({
   id: '/journal',
   path: '/journal',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const FeaturesRoute = FeaturesImport.update({
+const FeaturesRoute = FeaturesRouteImport.update({
   id: '/features',
   path: '/features',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const BlogRoute = BlogImport.update({
+const BlogRoute = BlogRouteImport.update({
   id: '/blog',
   path: '/blog',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const AboutRoute = AboutImport.update({
+const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const R404Route = R404Import.update({
+const _404Route = _404RouteImport.update({
   id: '/__404',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const IndexRoute = IndexImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const JournalIndexRoute = JournalIndexImport.update({
+const JournalIndexRoute = JournalIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const SignUpContinueRoute = SignUpContinueImport.update({
+const SignUpContinueRoute = SignUpContinueRouteImport.update({
   id: '/continue',
   path: '/continue',
   getParentRoute: () => SignUpRoute,
 } as any)
-
-const SignInSsoCallbackRoute = SignInSsoCallbackImport.update({
+const SignInSsoCallbackRoute = SignInSsoCallbackRouteImport.update({
   id: '/sso-callback',
   path: '/sso-callback',
   getParentRoute: () => SignInRoute,
 } as any)
-
-const ShareShareIdRoute = ShareShareIdImport.update({
+const ShareShareIdRoute = ShareShareIdRouteImport.update({
   id: '/share/$shareId',
   path: '/share/$shareId',
-  getParentRoute: () => rootRoute,
+  getParentRoute: () => rootRouteImport,
 } as any)
-
-const JournalUserProfileRoute = JournalUserProfileImport.update({
+const JournalUserProfileRoute = JournalUserProfileRouteImport.update({
   id: '/user-profile',
   path: '/user-profile',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalTodoRoute = JournalTodoImport.update({
+const JournalTodoRoute = JournalTodoRouteImport.update({
   id: '/todo',
   path: '/todo',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalDiaryRoute = JournalDiaryImport.update({
+const JournalDiaryRoute = JournalDiaryRouteImport.update({
   id: '/diary',
   path: '/diary',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalDashboardRoute = JournalDashboardImport.update({
+const JournalDashboardRoute = JournalDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalBeanJourneyRoute = JournalBeanJourneyImport.update({
+const JournalBeanJourneyRoute = JournalBeanJourneyRouteImport.update({
   id: '/bean-journey',
   path: '/bean-journey',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const BlogSlugRoute = BlogSlugImport.update({
+const BlogSlugRoute = BlogSlugRouteImport.update({
   id: '/$slug',
   path: '/$slug',
   getParentRoute: () => BlogRoute,
 } as any)
-
-const JournalMemoryZoneIndexRoute = JournalMemoryZoneIndexImport.update({
+const JournalMemoryZoneIndexRoute = JournalMemoryZoneIndexRouteImport.update({
   id: '/memory-zone/',
   path: '/memory-zone/',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalProjectProjectIdRoute = JournalProjectProjectIdImport.update({
+const JournalProjectProjectIdRoute = JournalProjectProjectIdRouteImport.update({
   id: '/project/$projectId',
   path: '/project/$projectId',
   getParentRoute: () => JournalRoute,
 } as any)
-
-const JournalMemoryZoneZoneIdRoute = JournalMemoryZoneZoneIdImport.update({
+const JournalMemoryZoneZoneIdRoute = JournalMemoryZoneZoneIdRouteImport.update({
   id: '/memory-zone/$zoneId',
   path: '/memory-zone/$zoneId',
   getParentRoute: () => JournalRoute,
 } as any)
 
-// Populate the FileRoutesByPath interface
+export interface FileRoutesByFullPath {
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/blog': typeof BlogRouteWithChildren
+  '/features': typeof FeaturesRoute
+  '/journal': typeof JournalRouteWithChildren
+  '/pricing': typeof PricingRoute
+  '/sign-in': typeof SignInRouteWithChildren
+  '/sign-up': typeof SignUpRouteWithChildren
+  '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/journal/bean-journey': typeof JournalBeanJourneyRoute
+  '/journal/dashboard': typeof JournalDashboardRoute
+  '/journal/diary': typeof JournalDiaryRoute
+  '/journal/todo': typeof JournalTodoRoute
+  '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
+  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
+  '/sign-up/continue': typeof SignUpContinueRoute
+  '/journal/': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
+  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
+}
+export interface FileRoutesByTo {
+  '/': typeof IndexRoute
+  '/about': typeof AboutRoute
+  '/blog': typeof BlogRouteWithChildren
+  '/features': typeof FeaturesRoute
+  '/pricing': typeof PricingRoute
+  '/sign-in': typeof SignInRouteWithChildren
+  '/sign-up': typeof SignUpRouteWithChildren
+  '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/journal/bean-journey': typeof JournalBeanJourneyRoute
+  '/journal/dashboard': typeof JournalDashboardRoute
+  '/journal/diary': typeof JournalDiaryRoute
+  '/journal/todo': typeof JournalTodoRoute
+  '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
+  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
+  '/sign-up/continue': typeof SignUpContinueRoute
+  '/journal': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
+  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
+}
+export interface FileRoutesById {
+  __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
+  '/__404': typeof _404Route
+  '/about': typeof AboutRoute
+  '/blog': typeof BlogRouteWithChildren
+  '/features': typeof FeaturesRoute
+  '/journal': typeof JournalRouteWithChildren
+  '/pricing': typeof PricingRoute
+  '/sign-in': typeof SignInRouteWithChildren
+  '/sign-up': typeof SignUpRouteWithChildren
+  '/theme-shop': typeof ThemeShopRoute
+  '/blog/$slug': typeof BlogSlugRoute
+  '/journal/bean-journey': typeof JournalBeanJourneyRoute
+  '/journal/dashboard': typeof JournalDashboardRoute
+  '/journal/diary': typeof JournalDiaryRoute
+  '/journal/todo': typeof JournalTodoRoute
+  '/journal/user-profile': typeof JournalUserProfileRoute
+  '/share/$shareId': typeof ShareShareIdRoute
+  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
+  '/sign-up/continue': typeof SignUpContinueRoute
+  '/journal/': typeof JournalIndexRoute
+  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
+  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
+  '/journal/memory-zone/': typeof JournalMemoryZoneIndexRoute
+}
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | '/'
+    | '/about'
+    | '/blog'
+    | '/features'
+    | '/journal'
+    | '/pricing'
+    | '/sign-in'
+    | '/sign-up'
+    | '/theme-shop'
+    | '/blog/$slug'
+    | '/journal/bean-journey'
+    | '/journal/dashboard'
+    | '/journal/diary'
+    | '/journal/todo'
+    | '/journal/user-profile'
+    | '/share/$shareId'
+    | '/sign-in/sso-callback'
+    | '/sign-up/continue'
+    | '/journal/'
+    | '/journal/memory-zone/$zoneId'
+    | '/journal/project/$projectId'
+    | '/journal/memory-zone'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/'
+    | '/about'
+    | '/blog'
+    | '/features'
+    | '/pricing'
+    | '/sign-in'
+    | '/sign-up'
+    | '/theme-shop'
+    | '/blog/$slug'
+    | '/journal/bean-journey'
+    | '/journal/dashboard'
+    | '/journal/diary'
+    | '/journal/todo'
+    | '/journal/user-profile'
+    | '/share/$shareId'
+    | '/sign-in/sso-callback'
+    | '/sign-up/continue'
+    | '/journal'
+    | '/journal/memory-zone/$zoneId'
+    | '/journal/project/$projectId'
+    | '/journal/memory-zone'
+  id:
+    | '__root__'
+    | '/'
+    | '/__404'
+    | '/about'
+    | '/blog'
+    | '/features'
+    | '/journal'
+    | '/pricing'
+    | '/sign-in'
+    | '/sign-up'
+    | '/theme-shop'
+    | '/blog/$slug'
+    | '/journal/bean-journey'
+    | '/journal/dashboard'
+    | '/journal/diary'
+    | '/journal/todo'
+    | '/journal/user-profile'
+    | '/share/$shareId'
+    | '/sign-in/sso-callback'
+    | '/sign-up/continue'
+    | '/journal/'
+    | '/journal/memory-zone/$zoneId'
+    | '/journal/project/$projectId'
+    | '/journal/memory-zone/'
+  fileRoutesById: FileRoutesById
+}
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  _404Route: typeof _404Route
+  AboutRoute: typeof AboutRoute
+  BlogRoute: typeof BlogRouteWithChildren
+  FeaturesRoute: typeof FeaturesRoute
+  JournalRoute: typeof JournalRouteWithChildren
+  PricingRoute: typeof PricingRoute
+  SignInRoute: typeof SignInRouteWithChildren
+  SignUpRoute: typeof SignUpRouteWithChildren
+  ThemeShopRoute: typeof ThemeShopRoute
+  ShareShareIdRoute: typeof ShareShareIdRoute
+}
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexImport
-      parentRoute: typeof rootRoute
-    }
-    '/__404': {
-      id: '/__404'
-      path: ''
-      fullPath: ''
-      preLoaderRoute: typeof R404Import
-      parentRoute: typeof rootRoute
-    }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutImport
-      parentRoute: typeof rootRoute
-    }
-    '/blog': {
-      id: '/blog'
-      path: '/blog'
-      fullPath: '/blog'
-      preLoaderRoute: typeof BlogImport
-      parentRoute: typeof rootRoute
-    }
-    '/features': {
-      id: '/features'
-      path: '/features'
-      fullPath: '/features'
-      preLoaderRoute: typeof FeaturesImport
-      parentRoute: typeof rootRoute
-    }
-    '/journal': {
-      id: '/journal'
-      path: '/journal'
-      fullPath: '/journal'
-      preLoaderRoute: typeof JournalImport
-      parentRoute: typeof rootRoute
-    }
-    '/pricing': {
-      id: '/pricing'
-      path: '/pricing'
-      fullPath: '/pricing'
-      preLoaderRoute: typeof PricingImport
-      parentRoute: typeof rootRoute
-    }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
-      preLoaderRoute: typeof SignInImport
-      parentRoute: typeof rootRoute
+    '/theme-shop': {
+      id: '/theme-shop'
+      path: '/theme-shop'
+      fullPath: '/theme-shop'
+      preLoaderRoute: typeof ThemeShopRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/sign-up': {
       id: '/sign-up'
       path: '/sign-up'
       fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpImport
-      parentRoute: typeof rootRoute
+      preLoaderRoute: typeof SignUpRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/theme-shop': {
-      id: '/theme-shop'
-      path: '/theme-shop'
-      fullPath: '/theme-shop'
-      preLoaderRoute: typeof ThemeShopImport
-      parentRoute: typeof rootRoute
+    '/sign-in': {
+      id: '/sign-in'
+      path: '/sign-in'
+      fullPath: '/sign-in'
+      preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/blog/$slug': {
-      id: '/blog/$slug'
-      path: '/$slug'
-      fullPath: '/blog/$slug'
-      preLoaderRoute: typeof BlogSlugImport
-      parentRoute: typeof BlogImport
+    '/pricing': {
+      id: '/pricing'
+      path: '/pricing'
+      fullPath: '/pricing'
+      preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/journal/bean-journey': {
-      id: '/journal/bean-journey'
-      path: '/bean-journey'
-      fullPath: '/journal/bean-journey'
-      preLoaderRoute: typeof JournalBeanJourneyImport
-      parentRoute: typeof JournalImport
+    '/journal': {
+      id: '/journal'
+      path: '/journal'
+      fullPath: '/journal'
+      preLoaderRoute: typeof JournalRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/journal/dashboard': {
-      id: '/journal/dashboard'
-      path: '/dashboard'
-      fullPath: '/journal/dashboard'
-      preLoaderRoute: typeof JournalDashboardImport
-      parentRoute: typeof JournalImport
+    '/features': {
+      id: '/features'
+      path: '/features'
+      fullPath: '/features'
+      preLoaderRoute: typeof FeaturesRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/journal/diary': {
-      id: '/journal/diary'
-      path: '/diary'
-      fullPath: '/journal/diary'
-      preLoaderRoute: typeof JournalDiaryImport
-      parentRoute: typeof JournalImport
+    '/blog': {
+      id: '/blog'
+      path: '/blog'
+      fullPath: '/blog'
+      preLoaderRoute: typeof BlogRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/journal/todo': {
-      id: '/journal/todo'
-      path: '/todo'
-      fullPath: '/journal/todo'
-      preLoaderRoute: typeof JournalTodoImport
-      parentRoute: typeof JournalImport
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/journal/user-profile': {
-      id: '/journal/user-profile'
-      path: '/user-profile'
-      fullPath: '/journal/user-profile'
-      preLoaderRoute: typeof JournalUserProfileImport
-      parentRoute: typeof JournalImport
+    '/__404': {
+      id: '/__404'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof _404RouteImport
+      parentRoute: typeof rootRouteImport
     }
-    '/share/$shareId': {
-      id: '/share/$shareId'
-      path: '/share/$shareId'
-      fullPath: '/share/$shareId'
-      preLoaderRoute: typeof ShareShareIdImport
-      parentRoute: typeof rootRoute
-    }
-    '/sign-in/sso-callback': {
-      id: '/sign-in/sso-callback'
-      path: '/sso-callback'
-      fullPath: '/sign-in/sso-callback'
-      preLoaderRoute: typeof SignInSsoCallbackImport
-      parentRoute: typeof SignInImport
-    }
-    '/sign-up/continue': {
-      id: '/sign-up/continue'
-      path: '/continue'
-      fullPath: '/sign-up/continue'
-      preLoaderRoute: typeof SignUpContinueImport
-      parentRoute: typeof SignUpImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/journal/': {
       id: '/journal/'
       path: '/'
       fullPath: '/journal/'
-      preLoaderRoute: typeof JournalIndexImport
-      parentRoute: typeof JournalImport
+      preLoaderRoute: typeof JournalIndexRouteImport
+      parentRoute: typeof JournalRoute
     }
-    '/journal/memory-zone/$zoneId': {
-      id: '/journal/memory-zone/$zoneId'
-      path: '/memory-zone/$zoneId'
-      fullPath: '/journal/memory-zone/$zoneId'
-      preLoaderRoute: typeof JournalMemoryZoneZoneIdImport
-      parentRoute: typeof JournalImport
+    '/sign-up/continue': {
+      id: '/sign-up/continue'
+      path: '/continue'
+      fullPath: '/sign-up/continue'
+      preLoaderRoute: typeof SignUpContinueRouteImport
+      parentRoute: typeof SignUpRoute
     }
-    '/journal/project/$projectId': {
-      id: '/journal/project/$projectId'
-      path: '/project/$projectId'
-      fullPath: '/journal/project/$projectId'
-      preLoaderRoute: typeof JournalProjectProjectIdImport
-      parentRoute: typeof JournalImport
+    '/sign-in/sso-callback': {
+      id: '/sign-in/sso-callback'
+      path: '/sso-callback'
+      fullPath: '/sign-in/sso-callback'
+      preLoaderRoute: typeof SignInSsoCallbackRouteImport
+      parentRoute: typeof SignInRoute
+    }
+    '/share/$shareId': {
+      id: '/share/$shareId'
+      path: '/share/$shareId'
+      fullPath: '/share/$shareId'
+      preLoaderRoute: typeof ShareShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/journal/user-profile': {
+      id: '/journal/user-profile'
+      path: '/user-profile'
+      fullPath: '/journal/user-profile'
+      preLoaderRoute: typeof JournalUserProfileRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/todo': {
+      id: '/journal/todo'
+      path: '/todo'
+      fullPath: '/journal/todo'
+      preLoaderRoute: typeof JournalTodoRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/diary': {
+      id: '/journal/diary'
+      path: '/diary'
+      fullPath: '/journal/diary'
+      preLoaderRoute: typeof JournalDiaryRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/dashboard': {
+      id: '/journal/dashboard'
+      path: '/dashboard'
+      fullPath: '/journal/dashboard'
+      preLoaderRoute: typeof JournalDashboardRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/bean-journey': {
+      id: '/journal/bean-journey'
+      path: '/bean-journey'
+      fullPath: '/journal/bean-journey'
+      preLoaderRoute: typeof JournalBeanJourneyRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/blog/$slug': {
+      id: '/blog/$slug'
+      path: '/$slug'
+      fullPath: '/blog/$slug'
+      preLoaderRoute: typeof BlogSlugRouteImport
+      parentRoute: typeof BlogRoute
     }
     '/journal/memory-zone/': {
       id: '/journal/memory-zone/'
       path: '/memory-zone'
       fullPath: '/journal/memory-zone'
-      preLoaderRoute: typeof JournalMemoryZoneIndexImport
-      parentRoute: typeof JournalImport
+      preLoaderRoute: typeof JournalMemoryZoneIndexRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/project/$projectId': {
+      id: '/journal/project/$projectId'
+      path: '/project/$projectId'
+      fullPath: '/journal/project/$projectId'
+      preLoaderRoute: typeof JournalProjectProjectIdRouteImport
+      parentRoute: typeof JournalRoute
+    }
+    '/journal/memory-zone/$zoneId': {
+      id: '/journal/memory-zone/$zoneId'
+      path: '/memory-zone/$zoneId'
+      fullPath: '/journal/memory-zone/$zoneId'
+      preLoaderRoute: typeof JournalMemoryZoneZoneIdRouteImport
+      parentRoute: typeof JournalRoute
     }
   }
 }
-
-// Create and export the route tree
 
 interface BlogRouteChildren {
   BlogSlugRoute: typeof BlogSlugRoute
@@ -403,179 +535,9 @@ const SignUpRouteChildren: SignUpRouteChildren = {
 const SignUpRouteWithChildren =
   SignUpRoute._addFileChildren(SignUpRouteChildren)
 
-export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '': typeof R404Route
-  '/about': typeof AboutRoute
-  '/blog': typeof BlogRouteWithChildren
-  '/features': typeof FeaturesRoute
-  '/journal': typeof JournalRouteWithChildren
-  '/pricing': typeof PricingRoute
-  '/sign-in': typeof SignInRouteWithChildren
-  '/sign-up': typeof SignUpRouteWithChildren
-  '/theme-shop': typeof ThemeShopRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/journal/bean-journey': typeof JournalBeanJourneyRoute
-  '/journal/dashboard': typeof JournalDashboardRoute
-  '/journal/diary': typeof JournalDiaryRoute
-  '/journal/todo': typeof JournalTodoRoute
-  '/journal/user-profile': typeof JournalUserProfileRoute
-  '/share/$shareId': typeof ShareShareIdRoute
-  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
-  '/sign-up/continue': typeof SignUpContinueRoute
-  '/journal/': typeof JournalIndexRoute
-  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
-  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
-  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
-}
-
-export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '': typeof R404Route
-  '/about': typeof AboutRoute
-  '/blog': typeof BlogRouteWithChildren
-  '/features': typeof FeaturesRoute
-  '/pricing': typeof PricingRoute
-  '/sign-in': typeof SignInRouteWithChildren
-  '/sign-up': typeof SignUpRouteWithChildren
-  '/theme-shop': typeof ThemeShopRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/journal/bean-journey': typeof JournalBeanJourneyRoute
-  '/journal/dashboard': typeof JournalDashboardRoute
-  '/journal/diary': typeof JournalDiaryRoute
-  '/journal/todo': typeof JournalTodoRoute
-  '/journal/user-profile': typeof JournalUserProfileRoute
-  '/share/$shareId': typeof ShareShareIdRoute
-  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
-  '/sign-up/continue': typeof SignUpContinueRoute
-  '/journal': typeof JournalIndexRoute
-  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
-  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
-  '/journal/memory-zone': typeof JournalMemoryZoneIndexRoute
-}
-
-export interface FileRoutesById {
-  __root__: typeof rootRoute
-  '/': typeof IndexRoute
-  '/__404': typeof R404Route
-  '/about': typeof AboutRoute
-  '/blog': typeof BlogRouteWithChildren
-  '/features': typeof FeaturesRoute
-  '/journal': typeof JournalRouteWithChildren
-  '/pricing': typeof PricingRoute
-  '/sign-in': typeof SignInRouteWithChildren
-  '/sign-up': typeof SignUpRouteWithChildren
-  '/theme-shop': typeof ThemeShopRoute
-  '/blog/$slug': typeof BlogSlugRoute
-  '/journal/bean-journey': typeof JournalBeanJourneyRoute
-  '/journal/dashboard': typeof JournalDashboardRoute
-  '/journal/diary': typeof JournalDiaryRoute
-  '/journal/todo': typeof JournalTodoRoute
-  '/journal/user-profile': typeof JournalUserProfileRoute
-  '/share/$shareId': typeof ShareShareIdRoute
-  '/sign-in/sso-callback': typeof SignInSsoCallbackRoute
-  '/sign-up/continue': typeof SignUpContinueRoute
-  '/journal/': typeof JournalIndexRoute
-  '/journal/memory-zone/$zoneId': typeof JournalMemoryZoneZoneIdRoute
-  '/journal/project/$projectId': typeof JournalProjectProjectIdRoute
-  '/journal/memory-zone/': typeof JournalMemoryZoneIndexRoute
-}
-
-export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths:
-    | '/'
-    | ''
-    | '/about'
-    | '/blog'
-    | '/features'
-    | '/journal'
-    | '/pricing'
-    | '/sign-in'
-    | '/sign-up'
-    | '/theme-shop'
-    | '/blog/$slug'
-    | '/journal/bean-journey'
-    | '/journal/dashboard'
-    | '/journal/diary'
-    | '/journal/todo'
-    | '/journal/user-profile'
-    | '/share/$shareId'
-    | '/sign-in/sso-callback'
-    | '/sign-up/continue'
-    | '/journal/'
-    | '/journal/memory-zone/$zoneId'
-    | '/journal/project/$projectId'
-    | '/journal/memory-zone'
-  fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | ''
-    | '/about'
-    | '/blog'
-    | '/features'
-    | '/pricing'
-    | '/sign-in'
-    | '/sign-up'
-    | '/theme-shop'
-    | '/blog/$slug'
-    | '/journal/bean-journey'
-    | '/journal/dashboard'
-    | '/journal/diary'
-    | '/journal/todo'
-    | '/journal/user-profile'
-    | '/share/$shareId'
-    | '/sign-in/sso-callback'
-    | '/sign-up/continue'
-    | '/journal'
-    | '/journal/memory-zone/$zoneId'
-    | '/journal/project/$projectId'
-    | '/journal/memory-zone'
-  id:
-    | '__root__'
-    | '/'
-    | '/__404'
-    | '/about'
-    | '/blog'
-    | '/features'
-    | '/journal'
-    | '/pricing'
-    | '/sign-in'
-    | '/sign-up'
-    | '/theme-shop'
-    | '/blog/$slug'
-    | '/journal/bean-journey'
-    | '/journal/dashboard'
-    | '/journal/diary'
-    | '/journal/todo'
-    | '/journal/user-profile'
-    | '/share/$shareId'
-    | '/sign-in/sso-callback'
-    | '/sign-up/continue'
-    | '/journal/'
-    | '/journal/memory-zone/$zoneId'
-    | '/journal/project/$projectId'
-    | '/journal/memory-zone/'
-  fileRoutesById: FileRoutesById
-}
-
-export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  R404Route: typeof R404Route
-  AboutRoute: typeof AboutRoute
-  BlogRoute: typeof BlogRouteWithChildren
-  FeaturesRoute: typeof FeaturesRoute
-  JournalRoute: typeof JournalRouteWithChildren
-  PricingRoute: typeof PricingRoute
-  SignInRoute: typeof SignInRouteWithChildren
-  SignUpRoute: typeof SignUpRouteWithChildren
-  ThemeShopRoute: typeof ThemeShopRoute
-  ShareShareIdRoute: typeof ShareShareIdRoute
-}
-
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  R404Route: R404Route,
+  _404Route: _404Route,
   AboutRoute: AboutRoute,
   BlogRoute: BlogRouteWithChildren,
   FeaturesRoute: FeaturesRoute,
@@ -586,131 +548,6 @@ const rootRouteChildren: RootRouteChildren = {
   ThemeShopRoute: ThemeShopRoute,
   ShareShareIdRoute: ShareShareIdRoute,
 }
-
-export const routeTree = rootRoute
+export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-/* ROUTE_MANIFEST_START
-{
-  "routes": {
-    "__root__": {
-      "filePath": "__root.tsx",
-      "children": [
-        "/",
-        "/__404",
-        "/about",
-        "/blog",
-        "/features",
-        "/journal",
-        "/pricing",
-        "/sign-in",
-        "/sign-up",
-        "/theme-shop",
-        "/share/$shareId"
-      ]
-    },
-    "/": {
-      "filePath": "index.tsx"
-    },
-    "/__404": {
-      "filePath": "__404.tsx"
-    },
-    "/about": {
-      "filePath": "about.tsx"
-    },
-    "/blog": {
-      "filePath": "blog.tsx",
-      "children": [
-        "/blog/$slug"
-      ]
-    },
-    "/features": {
-      "filePath": "features.tsx"
-    },
-    "/journal": {
-      "filePath": "journal.tsx",
-      "children": [
-        "/journal/bean-journey",
-        "/journal/dashboard",
-        "/journal/diary",
-        "/journal/todo",
-        "/journal/user-profile",
-        "/journal/",
-        "/journal/memory-zone/$zoneId",
-        "/journal/project/$projectId",
-        "/journal/memory-zone/"
-      ]
-    },
-    "/pricing": {
-      "filePath": "pricing.tsx"
-    },
-    "/sign-in": {
-      "filePath": "sign-in.tsx",
-      "children": [
-        "/sign-in/sso-callback"
-      ]
-    },
-    "/sign-up": {
-      "filePath": "sign-up.tsx",
-      "children": [
-        "/sign-up/continue"
-      ]
-    },
-    "/theme-shop": {
-      "filePath": "theme-shop.tsx"
-    },
-    "/blog/$slug": {
-      "filePath": "blog/$slug.tsx",
-      "parent": "/blog"
-    },
-    "/journal/bean-journey": {
-      "filePath": "journal/bean-journey.tsx",
-      "parent": "/journal"
-    },
-    "/journal/dashboard": {
-      "filePath": "journal/dashboard.tsx",
-      "parent": "/journal"
-    },
-    "/journal/diary": {
-      "filePath": "journal/diary.tsx",
-      "parent": "/journal"
-    },
-    "/journal/todo": {
-      "filePath": "journal/todo.tsx",
-      "parent": "/journal"
-    },
-    "/journal/user-profile": {
-      "filePath": "journal/user-profile.tsx",
-      "parent": "/journal"
-    },
-    "/share/$shareId": {
-      "filePath": "share/$shareId.tsx"
-    },
-    "/sign-in/sso-callback": {
-      "filePath": "sign-in/sso-callback.tsx",
-      "parent": "/sign-in"
-    },
-    "/sign-up/continue": {
-      "filePath": "sign-up/continue.tsx",
-      "parent": "/sign-up"
-    },
-    "/journal/": {
-      "filePath": "journal/index.tsx",
-      "parent": "/journal"
-    },
-    "/journal/memory-zone/$zoneId": {
-      "filePath": "journal/memory-zone/$zoneId.tsx",
-      "parent": "/journal"
-    },
-    "/journal/project/$projectId": {
-      "filePath": "journal/project/$projectId.tsx",
-      "parent": "/journal"
-    },
-    "/journal/memory-zone/": {
-      "filePath": "journal/memory-zone/index.tsx",
-      "parent": "/journal"
-    }
-  }
-}
-ROUTE_MANIFEST_END */
