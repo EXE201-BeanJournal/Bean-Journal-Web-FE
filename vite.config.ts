@@ -34,17 +34,10 @@ export default defineConfig(({ mode }) => {
 			'/api/resend': {
 				target: 'https://api.resend.com',
 				changeOrigin: true,
-				secure: true,
 				rewrite: (path) => path.replace(/^\/api\/resend/, ''),
-				configure: (proxy) => {
-					proxy.on('proxyReq', (proxyReq) => {
-						proxyReq.setHeader('Authorization', `Bearer ${env.VITE_RESEND_API_KEY}`);
-						proxyReq.setHeader('Content-Type', 'application/json');
-						console.log('Proxying request to:', proxyReq.getHeader('host') + proxyReq.path);
-					});
-					proxy.on('error', (err) => {
-						console.error('Proxy error:', err);
-					});
+				headers: {
+					'Authorization': `Bearer ${env.VITE_RESEND_API_KEY}`,
+					'Content-Type': 'application/json'
 				}
 			}
 		}
