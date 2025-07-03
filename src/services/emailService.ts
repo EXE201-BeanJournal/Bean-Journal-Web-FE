@@ -64,14 +64,34 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
       })
     });
 
+    // Log response details for debugging
+    console.log('Response status:', response.status);
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+    
+    // Get response text first to debug JSON parsing issues
+    const responseText = await response.text();
+    console.log('Raw response:', responseText);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+      let errorData;
+      try {
+        errorData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('Failed to parse error response as JSON:', parseError);
+        errorData = { message: `Non-JSON response: ${responseText}` };
+      }
       console.error('Resend API error:', errorData);
       throw new Error(`HTTP ${response.status}: ${errorData.message || 'Failed to send email'}`);
     }
 
-    const result = await response.json();
-    console.log('Email sent successfully:', result);
+    let result;
+    try {
+      result = JSON.parse(responseText);
+      console.log('Email sent successfully:', result);
+    } catch (parseError) {
+      console.error('Failed to parse success response as JSON:', parseError);
+      throw new Error(`Invalid JSON response: ${responseText}`);
+    }
 
     return {
       success: true,
