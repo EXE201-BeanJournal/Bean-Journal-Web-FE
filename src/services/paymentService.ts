@@ -131,11 +131,20 @@ class PaymentService {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
         
+        // Get the user's session token
+        const { data: { session } } = await supabase.auth.getSession();
+        const accessToken = session?.access_token;
+        
+        if (!accessToken) {
+          throw new Error('User not authenticated');
+        }
+        
         const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
             planId,
