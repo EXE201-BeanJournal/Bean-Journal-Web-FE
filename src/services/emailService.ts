@@ -21,14 +21,7 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
 
     // Check if API key is configured
     if (!import.meta.env.VITE_RESEND_API_KEY) {
-      console.warn('Resend API key not configured, falling back to mailto');
-      // Fallback to mailto link
-      const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
-      window.open(mailtoUrl, '_blank');
-      return {
-        success: true,
-        message: 'Email client opened successfully'
-      };
+      throw new Error('Resend API key not configured');
     }
 
     // Create email content
@@ -88,13 +81,9 @@ export const sendSupportEmail = async (emailData: EmailData): Promise<{ success:
   } catch (error) {
     console.error('Email service error:', error);
     
-    // Fallback to mailto if Resend fails
-    const mailtoUrl = `mailto:${emailData.to}?subject=${encodeURIComponent(emailData.subject)}&body=${encodeURIComponent(emailData.message)}`;
-    window.open(mailtoUrl, '_blank');
-    
     return {
-      success: true,
-      message: 'Email service unavailable, opened email client instead'
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to send email'
     };
   }
 };
