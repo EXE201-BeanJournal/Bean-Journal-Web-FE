@@ -1,5 +1,7 @@
 import { useUser } from '@clerk/clerk-react';
 import { paymentService } from './paymentService';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 // Base API configuration
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api';
@@ -90,11 +92,11 @@ export const plansApi = {
   /**
    * Get subscription plans
    */
-  async getPlans() {
+  async getPlans(supabase: SupabaseClient) {
     try {
       // For now, use the local paymentService
       // In production, this would call your backend API
-      return await paymentService.getSubscriptionPlans();
+      return await paymentService.getSubscriptionPlans(supabase);
     } catch (error) {
       console.error('Error fetching subscription plans:', error);
       throw error;
@@ -107,11 +109,11 @@ export const subscriptionsApi = {
   /**
    * Get user's current subscription
    */
-  async getUserSubscription(userId: string) {
+  async getUserSubscription(supabase: SupabaseClient, userId: string) {
     try {
       // For now, use the local paymentService
       // In production, this would call your backend API
-      return await paymentService.getUserSubscription(userId);
+      return await paymentService.getUserSubscription(supabase, userId);
     } catch (error) {
       console.error('Error fetching user subscription:', error);
       throw error;
@@ -122,10 +124,11 @@ export const subscriptionsApi = {
    * Cancel subscription
    */
   async cancelSubscription(
+    supabase: SupabaseClient,
     subscriptionId: string,
   ) {
     try {
-      return await paymentService.cancelSubscription(subscriptionId);
+      return await paymentService.cancelSubscription(supabase, subscriptionId);
     } catch (error) {
       console.error('Error canceling subscription:', error);
       throw error;
@@ -136,13 +139,14 @@ export const subscriptionsApi = {
    * Update subscription plan
    */
   async updateSubscription(
+    supabase: SupabaseClient,
     userId: string
   ) {
     try {
-      const currentSub = await paymentService.getUserSubscription(userId);
+      const currentSub = await paymentService.getUserSubscription(supabase, userId);
       
       if (currentSub && currentSub.status === 'active') {
-        await paymentService.cancelSubscription(currentSub.id);
+        await paymentService.cancelSubscription(supabase, currentSub.id);
       }
 
       return {
@@ -162,9 +166,9 @@ export const webhookHandlers = {
    * Handle Stripe webhook events
    * Note: In production, webhooks should be handled on the server side
    */
-  async handleStripeWebhook(event: { type: string; data: Record<string, unknown> }) {
+  async handleStripeWebhook(supabase: SupabaseClient, event: { type: string; data: Record<string, unknown> }) {
     try {
-      await paymentService.handleWebhook('stripe', event.type, event.data);
+      await paymentService.handleWebhook(supabase, 'stripe', event.type, event.data);
       return { received: true };
     } catch (error) {
       console.error('Error processing Stripe webhook:', error);
@@ -176,7 +180,7 @@ export const webhookHandlers = {
    * Handle MoMo webhook events
    * Note: In production, webhooks should be handled on the server side
    */
-  async handleMoMoWebhook(webhookData: {
+  async handleMoMoWebhook(supabase: SupabaseClient, webhookData: {
     orderId: string;
     transId: string;
     amount: number;
@@ -201,7 +205,7 @@ export const webhookHandlers = {
         }
       };
 
-      await paymentService.handleWebhook('momo', 'payment.completed', webhookEvent.data);
+      await paymentService.handleWebhook(supabase, 'momo', 'payment.completed', webhookEvent.data);
       
       return {
         partnerCode: webhookData.partnerCode,
@@ -241,15 +245,16 @@ export const usePaymentApi = () => {
 
 export const useSubscriptionsApi = () => {
   const { user } = useUser();
+  const supabase = useSupabase();
   
   return {
     getUserSubscription: () => 
-      user?.id ? subscriptionsApi.getUserSubscription(user.id) : Promise.resolve(null),
+      user?.id && supabase ? subscriptionsApi.getUserSubscription(supabase, user.id) : Promise.resolve(null),
     
     cancelSubscription: (subscriptionId: string) =>
-      user?.id ? subscriptionsApi.cancelSubscription(subscriptionId) : Promise.reject('No user'),
+      user?.id && supabase ? subscriptionsApi.cancelSubscription(supabase, subscriptionId) : Promise.reject('No user'),
     
     updateSubscription: () =>
-      user?.id ? subscriptionsApi.updateSubscription(user.id) : Promise.reject('No user')
+      user?.id && supabase ? subscriptionsApi.updateSubscription(supabase, user.id) : Promise.reject('No user')
   };
 };

@@ -5,9 +5,11 @@ import { Check, Star, CreditCard, Smartphone, ToggleLeft, ToggleRight } from 'lu
 import SubscriptionCheckout from './payment/SubscriptionCheckout';
 import { paymentService } from '../services/paymentService';
 import { SubscriptionPlan, UserSubscription } from '../types/payment';
+import { useSupabase } from '../contexts/SupabaseContext';
 
 export default function Pricing() {
     const { user, isSignedIn } = useUser();
+    const supabase = useSupabase();
     const [showCheckout, setShowCheckout] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState('');
     const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
@@ -19,11 +21,12 @@ export default function Pricing() {
         const loadData = async () => {
             try {
                 setLoading(true);
-                const plansData = await paymentService.getSubscriptionPlans();
+                if (!supabase) throw new Error('Supabase client is not initialized');
+                const plansData = await paymentService.getSubscriptionPlans(supabase);
                 setPlans(plansData);
 
                 if (isSignedIn && user) {
-                    const subscription = await paymentService.getUserSubscription(user.id);
+                    const subscription = await paymentService.getUserSubscription(supabase, user.id);
                     setUserSubscription(subscription);
                 }
             } catch (error) {

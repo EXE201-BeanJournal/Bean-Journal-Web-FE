@@ -5,11 +5,13 @@ import { Check, ArrowRight, Home } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { paymentService } from '../../services/paymentService';
 import { UserSubscription } from '../../types/payment';
+import { useSupabase } from '../../contexts/SupabaseContext';
 
 export default function PaymentSuccess() {
   const navigate = useNavigate();
   const searchParams = useSearch({ strict: false });
   const { user } = useUser();
+  const supabase = useSupabase();
   const [subscription, setSubscription] = useState<UserSubscription | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -31,11 +33,13 @@ export default function PaymentSuccess() {
         // For MoMo payments, we need to confirm using order_id
         if (payment_method === 'momo' && order_id) {
           // The webhook should have already processed this, just fetch the subscription
-          const userSub = await paymentService.getUserSubscription(user.id);
+          if (!supabase) throw new Error('Supabase client is not initialized');
+          const userSub = await paymentService.getUserSubscription(supabase, user.id);
           setSubscription(userSub);
         } else if (payment_intent) {
           // For Stripe payments, confirm the payment intent
           const result = await paymentService.confirmPayment(
+            supabase!, // Non-null assertion since we check for null above
             payment_intent as string
           );
           setSubscription(result);

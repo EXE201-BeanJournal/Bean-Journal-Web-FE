@@ -6,6 +6,7 @@ import StripePaymentForm from './StripePaymentForm';
 import MoMoPaymentForm from './MoMoPaymentForm';
 import { paymentService } from '../../services/paymentService';
 import { SubscriptionPlan } from '../../types/payment';
+import { useSupabase } from '../../contexts/SupabaseContext';
 
 interface SubscriptionCheckoutProps {
   planId: string;
@@ -21,6 +22,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
   className = ''
 }) => {
   const { user } = useUser();
+  const supabase = useSupabase();
   const [step, setStep] = useState<'plan' | 'payment-method' | 'payment'>('plan');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<'stripe' | 'momo'>('stripe');
   const [plan, setPlan] = useState<SubscriptionPlan | null>(null);
@@ -35,7 +37,8 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
     const loadPlan = async () => {
       try {
         setLoading(true);
-        const plans = await paymentService.getSubscriptionPlans();
+        if (!supabase) throw new Error('Supabase client is not initialized');
+        const plans = await paymentService.getSubscriptionPlans(supabase);
         const selectedPlan = plans.find(p => p.id === planId);
         
         if (!selectedPlan) {
@@ -78,6 +81,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
       
       // For Stripe payments, proceed as normal
       const result = await paymentService.createSubscriptionPayment(
+        supabase!, // Assert supabase is non-null since we check earlier in the function
         plan.id,
         selectedPaymentMethod,
         user.id,
@@ -106,6 +110,7 @@ const SubscriptionCheckout: React.FC<SubscriptionCheckoutProps> = ({
       }
 
       const subscription = await paymentService.confirmPayment(
+        supabase!,
         paymentData.paymentIntentId
       );
 
