@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { SupabaseClient } from '@supabase/supabase-js';
 import { momoPaymentService } from './momoPayment';
 import { SubscriptionPlan, UserSubscription } from '../types/payment';
 
@@ -6,7 +6,7 @@ class PaymentService {
   /**
    * Get available subscription plans
    */
-  async getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
+  async getSubscriptionPlans(supabase: SupabaseClient): Promise<SubscriptionPlan[]> {
     try {
       // First try to get from Supabase
       const { data: plans, error } = await supabase
@@ -80,6 +80,7 @@ class PaymentService {
    * Create payment intent for subscription
    */
   async createSubscriptionPayment(
+    supabase: SupabaseClient,
     planId: string,
     paymentMethod: 'stripe' | 'momo',
     userId: string,
@@ -88,7 +89,7 @@ class PaymentService {
   ): Promise<{ paymentUrl?: string; clientSecret?: string; paymentIntentId: string }> {
     try {
       // Get plan details
-      const plans = await this.getSubscriptionPlans();
+      const plans = await this.getSubscriptionPlans(supabase);
       const plan = plans.find(p => p.id === planId);
       
       if (!plan) {
@@ -127,22 +128,15 @@ class PaymentService {
 
       if (paymentMethod === 'stripe') {
         // Call Supabase Edge Function to create real Stripe payment intent
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!session?.access_token) {
-          throw new Error('User not authenticated');
-        }
-
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-         const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-         
-         const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
-           method: 'POST',
-           headers: {
-             'Content-Type': 'application/json',
-             'Authorization': `Bearer ${session.access_token}`,
-             'apikey': supabaseAnonKey,
-           },
+        const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        
+        const response = await fetch(`${supabaseUrl}/functions/v1/create-payment-intent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': supabaseAnonKey,
+          },
           body: JSON.stringify({
             planId,
             userEmail,
@@ -199,6 +193,7 @@ class PaymentService {
    * Confirm payment and activate subscription
    */
   async confirmPayment(
+    supabase: SupabaseClient,
     paymentIntentId: string
   ): Promise<UserSubscription> {
     try {
@@ -277,7 +272,7 @@ class PaymentService {
   /**
    * Get user's current subscription
    */
-  async getUserSubscription(userId: string): Promise<UserSubscription | null> {
+  async getUserSubscription(supabase: SupabaseClient, userId: string): Promise<UserSubscription | null> {
     try {
       const { data: subscription, error } = await supabase
         .from('subscriptions')
@@ -302,7 +297,7 @@ class PaymentService {
   /**
    * Cancel subscription
    */
-  async cancelSubscription(subscriptionId: string): Promise<void> {
+  async cancelSubscription(supabase: SupabaseClient, subscriptionId: string): Promise<void> {
     try {
       const { error } = await supabase
         .from('subscriptions')
@@ -325,6 +320,7 @@ class PaymentService {
    * Handle webhook events
    */
   async handleWebhook(
+    supabase: SupabaseClient,
     source: 'stripe' | 'momo',
     eventType: string,
     eventData: Record<string, unknown>
@@ -348,9 +344,9 @@ class PaymentService {
 
       // Process webhook based on source and type
       if (source === 'momo' && eventType === 'payment.completed') {
-        await this.processMoMoPaymentCompleted(eventData as { orderId: string; resultCode: number });
+        await this.processMoMoPaymentCompleted(supabase, eventData as { orderId: string; resultCode: number });
       } else if (source === 'stripe') {
-        await this.processStripeWebhook(eventType, eventData as { id: string });
+        await this.processStripeWebhook(supabase, eventType, eventData as { id: string });
       }
     } catch (error) {
       console.error('Error handling webhook:', error);
@@ -358,11 +354,11 @@ class PaymentService {
     }
   }
 
-  private async processMoMoPaymentCompleted(eventData: { orderId: string; resultCode: number }): Promise<void> {
+  private async processMoMoPaymentCompleted(supabase: SupabaseClient, eventData: { orderId: string; resultCode: number }): Promise<void> {
     const { orderId, resultCode } = eventData;
     
     if (resultCode === 0) {
-      await this.confirmPayment(orderId);
+      await this.confirmPayment(supabase, orderId);
     } else {
       // Update payment intent as failed
       await supabase
@@ -375,11 +371,11 @@ class PaymentService {
     }
   }
 
-  private async processStripeWebhook(eventType: string, eventData: { id: string }): Promise<void> {
+  private async processStripeWebhook(supabase: SupabaseClient, eventType: string, eventData: { id: string }): Promise<void> {
     // Handle Stripe webhook events
     switch (eventType) {
       case 'payment_intent.succeeded':
-        await this.confirmPayment(eventData.id);
+        await this.confirmPayment(supabase, eventData.id);
         break;
       case 'payment_intent.payment_failed':
         await supabase
