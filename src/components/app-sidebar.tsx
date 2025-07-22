@@ -26,7 +26,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { UserButton, useUser } from "@clerk/clerk-react";
+import { UserButton, useUser, useAuth } from "@clerk/clerk-react";
 import logoBean from "@/images/logo_bean_journal.png";
 import { Link } from "@tanstack/react-router";
 import { ThemeShopPage } from "@/routes/theme-shop";
@@ -77,6 +77,100 @@ const navOrganize = [
   },
 ];
 
+const BillingContent = () => {
+  const [loading, setLoading] = React.useState(false);
+  const { getToken } = useAuth();
+  const supabase = useSupabase();
+
+  const handlePayment = async (plan: { id: string; name: string }) => {
+    if (!supabase) {
+      console.error("Supabase client not available.");
+      alert("Could not process payment. Please try again later.");
+      return;
+    }
+    setLoading(true);
+    try {
+      // Get a short-lived token from Clerk, specifically for Supabase
+      const clerkToken = await getToken({ template: "supabase" });
+      if (!clerkToken) {
+        throw new Error("Could not authenticate. Please log in again.");
+      }
+
+      // Invoke the Edge Function with the token for authentication
+      const { data, error } = await supabase.functions.invoke(
+        "create-payos-link",
+        {
+          headers: {
+            Authorization: `Bearer ${clerkToken}`,
+          },
+          body: { planId: plan.id },
+        }
+      );
+
+      if (error) throw error;
+
+      // Redirect user to the payOS checkout page
+      if (data && data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error("Payment checkout URL not received.");
+      }
+    } catch (error) {
+      console.error("Error creating payment link:", error);
+      const fallbackMessage = "Failed to start payment. Please try again.";
+      if (error instanceof Error) {
+        alert(error.message || fallbackMessage);
+      } else {
+        alert(fallbackMessage);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const plans = [
+    { id: "premium", name: "Premium Monthly", price: "$2/month" },
+  ];
+
+  return (
+    <div className="w-full">
+      <h1 className="text-[1.05rem] font-bold mb-2 border-b pb-4">
+        Billing & Subscriptions
+      </h1>
+      <div className="space-y-8 py-4">
+        <div className="border-b pb-6">
+          <h2 className="text-[0.8rem] mb-4 font-medium text-[#212126] dark:text-gray-300">
+            Choose your plan
+          </h2>
+          <div className="flex flex-col gap-4">
+            {plans.map((plan) => (
+              <div
+                key={plan.id}
+                className="flex items-center justify-between p-4 rounded-lg bg-gray-100 dark:bg-gray-700"
+              >
+                <div>
+                  <h3 className="font-semibold text-[#1e1742] dark:text-white">
+                    {plan.name}
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    {plan.price}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handlePayment({ id: plan.id, name: plan.name })}
+                  disabled={loading || !supabase}
+                  className="px-4 py-2 text-sm font-medium text-white bg-[#99BC85] hover:bg-[#8ab076] rounded-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[#99BC85] focus-visible:ring-offset-2 disabled:opacity-50"
+                >
+                  {loading ? "Processing..." : `Subscribe`}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 const navDemo = [
   {
     title: "Billing Demo",
@@ -454,6 +548,13 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     labelIcon={<ShoppingBag size={16} />}
                   >
                     <ThemeShopPage />
+                  </UserButton.UserProfilePage>
+                  <UserButton.UserProfilePage
+                    label="Domestic Card Payment"
+                    url="domestic-card-payment"
+                    labelIcon={<CreditCard size={16} />}
+                  >
+                    <BillingContent />
                   </UserButton.UserProfilePage>
                 </UserButton>
               </div>
